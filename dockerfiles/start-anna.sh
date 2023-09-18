@@ -53,7 +53,7 @@ echo $PUBLIC_IP
 # none are specified, we use hydro-project/anna by default.
 git remote remove origin
 if [[ -z "$REPO_ORG" ]]; then
-  REPO_ORG="hydro-project"
+  REPO_ORG="rmadrid24"
 fi
 
 if [[ -z "$REPO_BRANCH" ]]; then
