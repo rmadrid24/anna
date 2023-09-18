@@ -38,13 +38,16 @@ mkdir -p conf
 # Check if the context that we are running in is EC2 or not. If it is, we
 # determine separate private and public IP addresses. Otherwise, we use the
 # same one for both.
-IS_EC2=`curl -s http://169.254.169.254`
-PRIVATE_IP=`ifconfig eth0 | grep 'inet' | grep -v inet6 | sed -e 's/^[ \t]*//' | cut -d' ' -f2`
-if [[ ! -z "$IS_EC2" ]]; then
-  PUBLIC_IP=`curl http://169.254.169.254/latest/meta-data/public-ipv4`
-else
-  PUBLIC_IP=$PRIVATE_IP
-fi
+#IS_EC2=`curl -s http://169.254.169.254`
+#PRIVATE_IP=`ifconfig eth0 | grep 'inet' | grep -v inet6 | sed -e 's/^[ \t]*//' | cut -d' ' -f2`
+#if [[ ! -z "$IS_EC2" ]]; then
+#  PUBLIC_IP=`curl http://169.254.169.254/latest/meta-data/public-ipv4`
+#else
+#  PUBLIC_IP=$PRIVATE_IP
+#fi
+
+echo $PRIVATE_IP
+echo $PUBLIC_IP
 
 # Download latest version of the code from relevant repository & branch -- if
 # none are specified, we use hydro-project/anna by default.
@@ -71,53 +74,55 @@ cd build && make -j2 && cd ..
 
 # Do not start the server until conf/anna-config.yml has been copied onto this
 # pod -- if we start earlier, we won't now how to configure the system.
-while [[ ! -f "conf/anna-config.yml" ]]; do
-  continue
-done
+#while [[ ! -f "conf/anna-config.yml" ]]; do
+#  continue
+#done
+
+echo "Starting Anna KVS"
 
 # Tailor the config file to have process specific information.
 if [ "$1" = "mn" ]; then
-  echo -e "monitoring:" >> conf/anna-config.yml
-  echo -e "    mgmt_ip: $MGMT_IP" >> conf/anna-config.yml
-  echo -e "    ip: $PRIVATE_IP" >> conf/anna-config.yml
+#  echo -e "monitoring:" >> conf/anna-config.yml
+#  echo -e "    mgmt_ip: $MGMT_IP" >> conf/anna-config.yml
+#  echo -e "    ip: $PRIVATE_IP" >> conf/anna-config.yml
 
   ./build/target/kvs/anna-monitor
 elif [ "$1" = "r" ]; then
-  echo -e "routing:" >> conf/anna-config.yml
-  echo -e "    ip: $PRIVATE_IP" >> conf/anna-config.yml
+#  echo -e "routing:" >> conf/anna-config.yml
+#  echo -e "    ip: $PRIVATE_IP" >> conf/anna-config.yml
 
-  LST=$(gen_yml_list "$MON_IPS")
-  echo -e "    monitoring:" >> conf/anna-config.yml
-  echo -e "$LST" >> conf/anna-config.yml
+#  LST=$(gen_yml_list "$MON_IPS")
+#  echo -e "    monitoring:" >> conf/anna-config.yml
+#  echo -e "$LST" >> conf/anna-config.yml
 
   ./build/target/kvs/anna-route
 elif [ "$1" = "b" ]; then
-  echo -e "user:" >> conf/anna-config.yml
-  echo -e "    ip: $PRIVATE_IP" >> conf/anna-config.yml
+#  echo -e "user:" >> conf/anna-config.yml
+#  echo -e "    ip: $PRIVATE_IP" >> conf/anna-config.yml
 
-  LST=$(gen_yml_list "$MON_IPS")
-  echo -e "    monitoring:" >> conf/anna-config.yml
-  echo -e "$LST" >> conf/anna-config.yml
+#  LST=$(gen_yml_list "$MON_IPS")
+#  echo -e "    monitoring:" >> conf/anna-config.yml
+#  echo -e "$LST" >> conf/anna-config.yml
 
-  LST=$(gen_yml_list "$ROUTING_IPS")
-  echo -e "    routing:" >> conf/anna-config.yml
-  echo -e "$LST" >> conf/anna-config.yml
+#  LST=$(gen_yml_list "$ROUTING_IPS")
+#  echo -e "    routing:" >> conf/anna-config.yml
+#  echo -e "$LST" >> conf/anna-config.yml
 
   ./build/target/benchmark/anna-bench
 else
-  echo -e "server:" >> conf/anna-config.yml
-  echo -e "    seed_ip: $SEED_IP" >> conf/anna-config.yml
-  echo -e "    public_ip: $PUBLIC_IP" >> conf/anna-config.yml
-  echo -e "    private_ip: $PRIVATE_IP" >> conf/anna-config.yml
-  echo -e "    mgmt_ip: $MGMT_IP" >> conf/anna-config.yml
+#  echo -e "server:" >> conf/anna-config.yml
+#  echo -e "    seed_ip: $SEED_IP" >> conf/anna-config.yml
+#  echo -e "    public_ip: $PUBLIC_IP" >> conf/anna-config.yml
+#  echo -e "    private_ip: $PRIVATE_IP" >> conf/anna-config.yml
+#  echo -e "    mgmt_ip: $MGMT_IP" >> conf/anna-config.yml
 
-  LST=$(gen_yml_list "$MON_IPS")
-  echo -e "    monitoring:" >> conf/anna-config.yml
-  echo -e "$LST" >> conf/anna-config.yml
+#  LST=$(gen_yml_list "$MON_IPS")
+#  echo -e "    monitoring:" >> conf/anna-config.yml
+#  echo -e "$LST" >> conf/anna-config.yml
 
-  LST=$(gen_yml_list "$ROUTING_IPS")
-  echo -e "    routing:" >> conf/anna-config.yml
-  echo -e "$LST" >> conf/anna-config.yml
+#  LST=$(gen_yml_list "$ROUTING_IPS")
+#  echo -e "    routing:" >> conf/anna-config.yml
+#  echo -e "$LST" >> conf/anna-config.yml
 
   ./build/target/kvs/anna-kvs
 fi

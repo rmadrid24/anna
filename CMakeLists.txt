@@ -27,10 +27,14 @@ IF(${BUILD_TEST})
   ENABLE_TESTING()
 ENDIF()
 
-SET(CMAKE_CXX_STANDARD 11)
+SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_CXX_STANDARD_REQUIRED on)
 
 SET(VENDOR_DIR common/vendor)
+#set(Protobuf_USE_STATIC_LIBS ON)
+# add parent directory containing bin/protoc.exe, cmake/protobuf-config.cmake, lib/libprotobufd.lib (or .a), etc.
+list(APPEND CMAKE_PREFIX_PATH "/home/jiel/.local")
+#link_directories("/home/jiel/.local/lib")
 
 IF(${CMAKE_CXX_COMPILER} STREQUAL "/usr/bin/clang++") 
   SET(CMAKE_CXX_FLAGS_COMMON
@@ -69,6 +73,7 @@ INCLUDE_DIRECTORIES(include)
 INCLUDE(FindProtobuf)
 FIND_PACKAGE(Protobuf REQUIRED)
 INCLUDE_DIRECTORIES(${PROTOBUF_INCLUDE_DIR})
+message(STATUS ${PROTOBUF_INCLUDE_DIR})
 PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER
   ./common/proto/anna.proto
   ./common/proto/shared.proto
@@ -92,7 +97,7 @@ IF(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
   INCLUDE(common/cmake/CodeCoverage.cmake) 
 ENDIF()
 
-LINK_DIRECTORIES(${ZEROMQ_LINK_DIRS} ${YAMLCPP_LINK_DIRS})
+LINK_DIRECTORIES(${ZEROMQ_LINK_DIRS} ${YAMLCPP_LINK_DIRS} ${CMAKE_CURRENT_BINARY_DIR} "/home/jiel/.local/lib")
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(client/cpp)

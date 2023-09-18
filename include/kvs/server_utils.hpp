@@ -209,12 +209,13 @@ public:
     if (ebs_root_.back() != '/') {
       ebs_root_ += "/";
     }
+    std::cout << "root " << ebs_root_ << std::endl;
   }
 
   string get(const Key &key, AnnaError &error) {
     string res;
     LWWValue value;
-
+    //std::cout << "Reading from disk" << std::endl;
     // open a new filestream for reading in a binary
     string fname = ebs_root_ + "ebs_" + std::to_string(tid_) + "/" + key;
     std::fstream input(fname, std::ios::in | std::ios::binary);
@@ -242,7 +243,7 @@ public:
 
     string fname = ebs_root_ + "ebs_" + std::to_string(tid_) + "/" + key;
     std::fstream input(fname, std::ios::in | std::ios::binary);
-
+    //std::cout << "Writing to disk" << std::endl;
     if (!input) { // in this case, this key has never been seen before, so we
                   // attempt to create a new file for it
 
@@ -777,7 +778,7 @@ public:
     PriorityValue input_value;
     input_value.ParseFromString(serialized);
 
-    int fd = open(fname(key).c_str(), O_RDWR | O_CREAT);
+    int fd = open(fname(key).c_str(), O_RDWR | O_CREAT, 0666);
     if (fd == -1) {
       std::cerr << "Failed to open file" << std::endl;
       return 0;
