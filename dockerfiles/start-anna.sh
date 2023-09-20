@@ -109,7 +109,7 @@ elif [ "$1" = "b" ]; then
 #  echo -e "$LST" >> conf/anna-config.yml
 
   ./build/target/benchmark/anna-bench
-else
+elif [ "$1" = "mem" ]; then
 #  echo -e "server:" >> conf/anna-config.yml
 #  echo -e "    seed_ip: $SEED_IP" >> conf/anna-config.yml
 #  echo -e "    public_ip: $PUBLIC_IP" >> conf/anna-config.yml
@@ -123,6 +123,14 @@ else
 #  LST=$(gen_yml_list "$ROUTING_IPS")
 #  echo -e "    routing:" >> conf/anna-config.yml
 #  echo -e "$LST" >> conf/anna-config.yml
-
+  echo "Start monitor"
+  ./build/target/kvs/anna-monitor & MPID=$!
+  echo "Start route"
+  ./build/target/kvs/anna-route & RPID=$!
+  echo "Start kvs"
+  export SERVER_TYPE="memory"
+  ./build/target/kvs/anna-kvs
+elif [ "$1" = "ebs" ]; then
+  export SERVER_TYPE="ebs"
   ./build/target/kvs/anna-kvs
 fi

@@ -1,25 +1,7 @@
-monitoring:
-  mgmt_ip: "NULL"
-  ip: 192.168.1.13
 routing:
   monitoring: 
       - 192.168.1.13
   ip: 192.168.1.12
-user:
-  monitoring:
-      - 192.168.1.13
-  routing: 
-      - 192.168.1.12
-  ip: 192.168.1.14
-server:
-  monitoring:
-      - 192.168.1.13
-  routing: 
-      - 192.168.1.12
-  seed_ip: 192.168.1.10
-  public_ip: 192.168.1.10
-  private_ip: 192.168.1.10
-  mgmt_ip: "NULL"
 policy:
   elasticity: false
   selective-rep: false

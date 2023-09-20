@@ -1,42 +1,29 @@
 version: "3"
 services:
-  monitor:
-    image: anna-kvs
-    command: bash start-anna.sh mn
-    volumes:
-      - ./conf/anna-config-mn.yml:/hydro/anna/conf/anna-config.yml
-    networks:
-      anna_network:
-        ipv4_address: 192.168.1.13
-  routing:
-    image: anna-kvs
-    command: bash start-anna.sh r
-    volumes:
-      - ./conf/anna-config-rt.yml:/hydro/anna/conf/anna-config.yml
-    networks:
-      anna_network:
-        ipv4_address: 192.168.1.12
   mem:
     image: anna-kvs
     command: bash start-anna.sh mem
-    environment:
-      - SERVER_TYPE=memory
     volumes:
       - ./conf/anna-config-mem.yml:/hydro/anna/conf/anna-config.yml
     networks:
       anna_network:
         ipv4_address: 192.168.1.10
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
   ebs:
     image: anna-kvs
     command: bash start-anna.sh ebs
-    environment:
-      - SERVER_TYPE=ebs
     volumes:
       - ./conf/anna-config-ebs.yml:/hydro/anna/conf/anna-config.yml
       - /home/jiel/anna/data:/data
     networks:
       anna_network:
         ipv4_address: 192.168.1.11
+    depends_on:
+      - mem
   bench:
     image: anna-kvs
     command: bash start-anna.sh b
@@ -44,7 +31,9 @@ services:
       - ./conf/anna-config-bench.yml:/hydro/anna/conf/anna-config.yml
     networks:
       anna_network:
-        ipv4_address: 192.168.1.14
+        ipv4_address: 192.168.1.12
+    depends_on:
+      - mem
 networks:
   anna_network:
     ipam:

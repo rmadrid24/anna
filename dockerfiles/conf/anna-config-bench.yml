@@ -1,31 +1,15 @@
-monitoring:
-  mgmt_ip: "NULL"
-  ip: 192.168.1.13
-routing:
-  monitoring: 
-      - 192.168.1.13
-  ip: 192.168.1.12
 user:
   monitoring:
-      - 192.168.1.13
+      - 192.168.1.10
   routing: 
-      - 192.168.1.12
-  ip: 192.168.1.14
-server:
-  monitoring:
-      - 192.168.1.13
-  routing: 
-      - 192.168.1.12
-  seed_ip: 192.168.1.10
-  public_ip: 192.168.1.10
-  private_ip: 192.168.1.10
-  mgmt_ip: "NULL"
+      - 192.168.1.10
+  ip: 192.168.1.12
 policy:
   elasticity: false
   selective-rep: false
   tiering: false
 benchmark:
-  - 127.0.0.1
+  - 192.168.1.12
 capacities: # in GB
   memory-cap: 1
   ebs-cap: 80
