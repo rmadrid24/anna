@@ -18,7 +18,7 @@ services:
     command: bash start-anna.sh ebs
     volumes:
       - ./conf/anna-config-ebs.yml:/hydro/anna/conf/anna-config.yml
-      - /home/jiel/anna/data:/data
+      - /mnt/pmem0/data:/data
     networks:
       anna_network:
         ipv4_address: 192.168.1.11
