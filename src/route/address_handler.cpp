@@ -81,7 +81,6 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
   if (respond) {
     string serialized;
     addr_response.SerializeToString(&serialized);
-    log->info("key address {}", serialized);
     kZmqUtil->send_string(serialized,
                           &pushers[addr_request.response_address()]);
   }
