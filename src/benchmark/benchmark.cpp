@@ -18,10 +18,19 @@
 #include "client/kvs_client.hpp"
 #include "kvs_threads.hpp"
 #include "yaml-cpp/yaml.h"
+#include "discrete_generator.h"
 
 unsigned kBenchmarkThreadNum;
 unsigned kRoutingThreadCount;
 unsigned kDefaultLocalReplication;
+
+enum Operation {
+  READ,
+  UPDATE,
+  READMODIFYWRITE
+};
+
+benchmark::DiscreteGenerator<Operation> op_chooser_;
 
 ZmqUtil zmq_util;
 ZmqUtilInterface *kZmqUtil = &zmq_util;
@@ -138,15 +147,30 @@ void run(const unsigned &thread_id,
                                .count();
         log->info("Cache warm-up took {} seconds.", warmup_time);
       } else if (mode == "LOAD") {
-        string type = v[1];
-        unsigned num_keys = stoi(v[2]);
-        unsigned length = stoi(v[3]);
-        unsigned report_period = stoi(v[4]);
-        unsigned time = stoi(v[5]);
-        double zipf = stod(v[6]);
+        //string type = v[1];
+        unsigned num_keys = stoi(v[1]);
+        unsigned length = stoi(v[2]);
+        unsigned report_period = stoi(v[3]);
+        unsigned time = stoi(v[4]);
+        double zipf = stod(v[5]);
+	double read_proportion = stod(v[6]);
+	double update_proportion = stod(v[7]);
+	double readmodifywrite_proportion = stod(v[8]);
 
         map<unsigned, double> sum_probs;
         double base;
+
+	if (read_proportion > 0) {
+	  op_chooser_.AddValue(Operation::READ, read_proportion);
+	}
+	
+	if (update_proportion > 0) {
+	  op_chooser_.AddValue(Operation::UPDATE, update_proportion);
+	}
+	
+	if (readmodifywrite_proportion > 0) {
+	  op_chooser_.AddValue(Operation::READMODIFYWRITE, readmodifywrite_proportion);
+	}
 
         if (zipf > 0) {
           log->info("Zipf coefficient is {}.", zipf);
@@ -179,12 +203,13 @@ void run(const unsigned &thread_id,
           }
 
           Key key = generate_key(k);
+	  Operation type = op_chooser_.Next();
 
-          if (type == "G") {
+          if (type == Operation::READ) {
             client.get_async(key);
             receive(&client);
             count += 1;
-          } else if (type == "P") {
+          } else if (type == Operation::UPDATE) {
             unsigned ts = generate_timestamp(thread_id);
             LWWPairLattice<string> val(
                 TimestampValuePair<string>(ts, string(length, 'a')));
@@ -192,7 +217,7 @@ void run(const unsigned &thread_id,
             client.put_async(key, serialize(val), LatticeType::LWW);
             receive(&client);
             count += 1;
-          } else if (type == "M") {
+          } else if (type == Operation::READMODIFYWRITE) {
             auto req_start = std::chrono::system_clock::now();
             unsigned ts = generate_timestamp(thread_id);
             LWWPairLattice<string> val(
