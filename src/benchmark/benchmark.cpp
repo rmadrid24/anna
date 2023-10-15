@@ -161,9 +161,6 @@ void run(const unsigned &thread_id,
         double base;
 
 	op_chooser_ = new benchmark::DiscreteGenerator<Operation>();
-	int read_ops = 0;
-	int write_ops = 0;
-	int readmodifywrite_ops = 0;
 	if (read_proportion > 0) {
 	  op_chooser_->AddValue(Operation::READ, read_proportion);
 	}
@@ -189,6 +186,9 @@ void run(const unsigned &thread_id,
         }
 
         size_t count = 0;
+	size_t read_ops = 0;
+        size_t write_ops = 0;
+        size_t readmodifywrite_ops = 0;
         auto benchmark_start = std::chrono::system_clock::now();
         auto benchmark_end = std::chrono::system_clock::now();
         auto epoch_start = std::chrono::system_clock::now();
