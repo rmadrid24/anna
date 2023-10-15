@@ -30,7 +30,7 @@ enum Operation {
   READMODIFYWRITE
 };
 
-benchmark::DiscreteGenerator<Operation> op_chooser_;
+benchmark::DiscreteGenerator<Operation>* op_chooser_;
 
 ZmqUtil zmq_util;
 ZmqUtilInterface *kZmqUtil = &zmq_util;
@@ -160,16 +160,20 @@ void run(const unsigned &thread_id,
         map<unsigned, double> sum_probs;
         double base;
 
+	op_chooser_ = new benchmark::DiscreteGenerator<Operation>();
+	int read_ops = 0;
+	int write_ops = 0;
+	int readmodifywrite_ops = 0;
 	if (read_proportion > 0) {
-	  op_chooser_.AddValue(Operation::READ, read_proportion);
+	  op_chooser_->AddValue(Operation::READ, read_proportion);
 	}
 	
 	if (update_proportion > 0) {
-	  op_chooser_.AddValue(Operation::UPDATE, update_proportion);
+	  op_chooser_->AddValue(Operation::UPDATE, update_proportion);
 	}
 	
 	if (readmodifywrite_proportion > 0) {
-	  op_chooser_.AddValue(Operation::READMODIFYWRITE, readmodifywrite_proportion);
+	  op_chooser_->AddValue(Operation::READMODIFYWRITE, readmodifywrite_proportion);
 	}
 
         if (zipf > 0) {
@@ -203,12 +207,13 @@ void run(const unsigned &thread_id,
           }
 
           Key key = generate_key(k);
-	  Operation type = op_chooser_.Next();
+	  Operation type = op_chooser_->Next();
 
           if (type == Operation::READ) {
             client.get_async(key);
             receive(&client);
             count += 1;
+	    read_ops += 1;
           } else if (type == Operation::UPDATE) {
             unsigned ts = generate_timestamp(thread_id);
             LWWPairLattice<string> val(
@@ -217,6 +222,7 @@ void run(const unsigned &thread_id,
             client.put_async(key, serialize(val), LatticeType::LWW);
             receive(&client);
             count += 1;
+	    write_ops += 1;
           } else if (type == Operation::READMODIFYWRITE) {
             auto req_start = std::chrono::system_clock::now();
             unsigned ts = generate_timestamp(thread_id);
@@ -228,6 +234,7 @@ void run(const unsigned &thread_id,
             client.get_async(key);
             receive(&client);
             count += 2;
+	    readmodifywrite_ops += 1;
 
             auto req_end = std::chrono::system_clock::now();
 
@@ -302,6 +309,10 @@ void run(const unsigned &thread_id,
         }
 
         log->info("Finished");
+	log->info("Read ops {}", read_ops);
+	log->info("write ops {}", write_ops);
+	log->info("Readmodifywrite ops {}", readmodifywrite_ops);
+	delete op_chooser_;
         UserFeedback feedback;
 
         feedback.set_uid(ip + ":" + std::to_string(thread_id));
