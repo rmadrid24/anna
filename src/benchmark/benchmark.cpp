@@ -30,8 +30,6 @@ enum Operation {
   READMODIFYWRITE
 };
 
-benchmark::DiscreteGenerator<Operation>* op_chooser_;
-
 ZmqUtil zmq_util;
 ZmqUtilInterface *kZmqUtil = &zmq_util;
 
@@ -160,17 +158,17 @@ void run(const unsigned &thread_id,
         map<unsigned, double> sum_probs;
         double base;
 
-	op_chooser_ = new benchmark::DiscreteGenerator<Operation>();
+	benchmark::DiscreteGenerator<Operation> op_chooser_;
 	if (read_proportion > 0) {
-	  op_chooser_->AddValue(Operation::READ, read_proportion);
+	  op_chooser_.AddValue(Operation::READ, read_proportion);
 	}
 	
 	if (update_proportion > 0) {
-	  op_chooser_->AddValue(Operation::UPDATE, update_proportion);
+	  op_chooser_.AddValue(Operation::UPDATE, update_proportion);
 	}
 	
 	if (readmodifywrite_proportion > 0) {
-	  op_chooser_->AddValue(Operation::READMODIFYWRITE, readmodifywrite_proportion);
+	  op_chooser_.AddValue(Operation::READMODIFYWRITE, readmodifywrite_proportion);
 	}
 
         if (zipf > 0) {
@@ -207,7 +205,7 @@ void run(const unsigned &thread_id,
           }
 
           Key key = generate_key(k);
-	  Operation type = op_chooser_->Next();
+	  Operation type = op_chooser_.Next();
 
           if (type == Operation::READ) {
             client.get_async(key);
@@ -315,7 +313,6 @@ void run(const unsigned &thread_id,
         }
 
         log->info("Finished");
-	delete op_chooser_;
         UserFeedback feedback;
 
         feedback.set_uid(ip + ":" + std::to_string(thread_id));
