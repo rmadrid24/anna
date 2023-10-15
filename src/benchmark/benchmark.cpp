@@ -295,6 +295,12 @@ void run(const unsigned &thread_id,
             }
 
             count = 0;
+	    read_ops = 0;
+    	    write_ops = 0;
+    	    readmodifywrite_ops = 0;
+	    log->info("Read ops {}", read_ops);
+	    log->info("write ops {}", write_ops);
+    	    log->info("Readmodifywrite ops {}", readmodifywrite_ops);
             observed_latency.clear();
             epoch_start = std::chrono::system_clock::now();
           }
@@ -309,9 +315,6 @@ void run(const unsigned &thread_id,
         }
 
         log->info("Finished");
-	log->info("Read ops {}", read_ops);
-	log->info("write ops {}", write_ops);
-	log->info("Readmodifywrite ops {}", readmodifywrite_ops);
 	delete op_chooser_;
         UserFeedback feedback;
 
