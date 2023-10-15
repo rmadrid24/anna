@@ -292,9 +292,9 @@ void run(const unsigned &thread_id,
                   &pushers[thread.feedback_report_connect_address()]);
             }
 
-            log->info("Read ops {}", read_ops);
-            log->info("write ops {}", write_ops);
-            log->info("Readmodifywrite ops {}", readmodifywrite_ops);
+            //log->info("Read ops {}", read_ops);
+            //log->info("write ops {}", write_ops);
+            //log->info("Readmodifywrite ops {}", readmodifywrite_ops);
 	    count = 0;
 	    read_ops = 0;
     	    write_ops = 0;
