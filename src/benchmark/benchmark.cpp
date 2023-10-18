@@ -34,7 +34,7 @@ enum Operation {
 struct hdr_histogram* histogram;
 
 void reset_histogram() {
-  histogram = NULL;
+  //histogram = NULL;
   hdr_init(
     1,
     INT64_C(3600000000),
