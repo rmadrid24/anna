@@ -328,11 +328,11 @@ void run(const unsigned &thread_id,
     	    write_ops = 0;
     	    readmodifywrite_ops = 0;
             observed_latency.clear();
-	    log->info("0.05: {}", hdr_value_at_percentile(r_histogram, 5.0));
-	    log->info("0.25: {}", hdr_value_at_percentile(r_histogram, 25.0));
-	    log->info("0.50: {}", hdr_value_at_percentile(r_histogram, 50.0));
-	    log->info("0.75: {}", hdr_value_at_percentile(r_histogram, 75.0));
-	    log->info("0.99: {}", hdr_value_at_percentile(r_histogram, 99.0));
+	    log->info("0.05: {}", hdr_value_at_percentile(histogram, 5.0));
+	    log->info("0.25: {}", hdr_value_at_percentile(histogram, 25.0));
+	    log->info("0.50: {}", hdr_value_at_percentile(histogram, 50.0));
+	    log->info("0.75: {}", hdr_value_at_percentile(histogram, 75.0));
+	    log->info("0.99: {}", hdr_value_at_percentile(histogram, 99.0));
 	    reset_histogram();
             epoch_start = std::chrono::system_clock::now();
           }
