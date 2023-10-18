@@ -19,6 +19,7 @@
 #include "kvs_threads.hpp"
 #include "yaml-cpp/yaml.h"
 #include "discrete_generator.h"
+#include <hdr/hdr_histogram.h>
 
 unsigned kBenchmarkThreadNum;
 unsigned kRoutingThreadCount;
@@ -29,6 +30,32 @@ enum Operation {
   UPDATE,
   READMODIFYWRITE
 };
+
+struct hdr_histogram* histogram;
+
+void reset_histogram() {
+  histogram = NULL;
+  hdr_init(
+    1,
+    INT64_C(3600000000),
+    3,
+    &histogram);
+}
+
+void print_histogram() {
+  hdr_percentiles_print(
+    histogram,
+    stdout,
+    5,
+    1.0,
+    CLASSIC);
+}
+
+void histogram_record_value(double value) {
+  hdr_record_value(
+    histogram,
+    value);
+}
 
 ZmqUtil zmq_util;
 ZmqUtilInterface *kZmqUtil = &zmq_util;
@@ -196,6 +223,8 @@ void run(const unsigned &thread_id,
                               .count();
         unsigned epoch = 1;
 
+	reset_histogram();
+
         while (true) {
           unsigned k;
           if (zipf > 0) {
@@ -206,6 +235,7 @@ void run(const unsigned &thread_id,
 
           Key key = generate_key(k);
 	  Operation type = op_chooser_.Next();
+	  auto req_start = std::chrono::system_clock::now();
 
           if (type == Operation::READ) {
             client.get_async(key);
@@ -222,40 +252,47 @@ void run(const unsigned &thread_id,
             count += 1;
 	    write_ops += 1;
           } else if (type == Operation::READMODIFYWRITE) {
-            auto req_start = std::chrono::system_clock::now();
+            //auto req_start = std::chrono::system_clock::now();
             unsigned ts = generate_timestamp(thread_id);
             LWWPairLattice<string> val(
                 TimestampValuePair<string>(ts, string(length, 'a')));
 
-            client.put_async(key, serialize(val), LatticeType::LWW);
-            receive(&client);
             client.get_async(key);
             receive(&client);
-            count += 2;
+            client.put_async(key, serialize(val), LatticeType::LWW);
+            receive(&client);
+	    count += 2;
 	    readmodifywrite_ops += 1;
 
-            auto req_end = std::chrono::system_clock::now();
+            //auto req_end = std::chrono::system_clock::now();
 
-            double key_latency =
-                (double)std::chrono::duration_cast<std::chrono::microseconds>(
-                    req_end - req_start)
-                    .count() /
-                2;
+            //double key_latency =
+            //    (double)std::chrono::duration_cast<std::chrono::microseconds>(
+            //        req_end - req_start)
+            //        .count() /
+            //    2;
 
-            if (observed_latency.find(key) == observed_latency.end()) {
-              observed_latency[key].first = key_latency;
-              observed_latency[key].second = 1;
-            } else {
-              observed_latency[key].first =
-                  (observed_latency[key].first * observed_latency[key].second +
-                   key_latency) /
-                  (observed_latency[key].second + 1);
-              observed_latency[key].second += 1;
-            }
+            //if (observed_latency.find(key) == observed_latency.end()) {
+            //  observed_latency[key].first = key_latency;
+            //  observed_latency[key].second = 1;
+            //} else {
+            //  observed_latency[key].first =
+            //      (observed_latency[key].first * observed_latency[key].second +
+            //       key_latency) /
+            //      (observed_latency[key].second + 1);
+            //  observed_latency[key].second += 1;
+            //}
           } else {
             log->info("{} is an invalid request type.", type);
           }
 
+	  auto req_end = std::chrono::system_clock::now();
+
+          double key_latency =
+	    (double)std::chrono::duration_cast<std::chrono::microseconds>(req_end - req_start).count();
+
+	  // Record value
+	  histogram_record_value(key_latency);
           epoch_end = std::chrono::system_clock::now();
           auto time_elapsed = std::chrono::duration_cast<std::chrono::seconds>(
                                   epoch_end - epoch_start)
@@ -300,6 +337,8 @@ void run(const unsigned &thread_id,
     	    write_ops = 0;
     	    readmodifywrite_ops = 0;
             observed_latency.clear();
+	    print_histogram();
+	    reset_histogram();
             epoch_start = std::chrono::system_clock::now();
           }
 
