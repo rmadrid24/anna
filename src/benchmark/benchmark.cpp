@@ -31,23 +31,6 @@ enum Operation {
   READMODIFYWRITE
 };
 
-struct hdr_histogram* histogram;
-
-void reset_histogram() {
-  //histogram = NULL;
-  hdr_init(
-    1,
-    INT64_C(3600000000),
-    3,
-    &histogram);
-}
-
-void histogram_record_value(double value) {
-  hdr_record_value(
-    histogram,
-    value);
-}
-
 ZmqUtil zmq_util;
 ZmqUtilInterface *kZmqUtil = &zmq_util;
 
@@ -119,6 +102,13 @@ void run(const unsigned &thread_id,
 
   client.set_logger(log);
   unsigned seed = client.get_seed();
+
+  struct hdr_histogram* histogram;
+  hdr_init(
+    1,
+    INT64_C(3600000000),
+    3,
+    &histogram);
 
   // observed per-key avg latency
   map<Key, std::pair<double, unsigned>> observed_latency;
@@ -214,7 +204,7 @@ void run(const unsigned &thread_id,
                               .count();
         unsigned epoch = 1;
 
-	reset_histogram();
+	hdr_reset(histogram);
 
         while (true) {
           unsigned k;
@@ -283,7 +273,7 @@ void run(const unsigned &thread_id,
 	    (double)std::chrono::duration_cast<std::chrono::microseconds>(req_end - req_start).count();
 
 	  // Record value
-	  histogram_record_value(key_latency);
+	  hdr_record_value(histogram, key_latency);
           epoch_end = std::chrono::system_clock::now();
           auto time_elapsed = std::chrono::duration_cast<std::chrono::seconds>(
                                   epoch_end - epoch_start)
@@ -328,13 +318,13 @@ void run(const unsigned &thread_id,
     	    write_ops = 0;
     	    readmodifywrite_ops = 0;
             observed_latency.clear();
-	    log->info("0.05: {}", hdr_value_at_percentile(histogram, 5.0));
-	    log->info("0.25: {}", hdr_value_at_percentile(histogram, 25.0));
-	    log->info("0.50: {}", hdr_value_at_percentile(histogram, 50.0));
-	    log->info("0.75: {}", hdr_value_at_percentile(histogram, 75.0));
-	    log->info("0.99: {}", hdr_value_at_percentile(histogram, 99.0));
-	    reset_histogram();
-            epoch_start = std::chrono::system_clock::now();
+	    log->info("[Epoch {}] 0.05: {}", epoch, hdr_value_at_percentile(histogram, 5.0));
+	    log->info("[Epoch {}] 0.25: {}", epoch, hdr_value_at_percentile(histogram, 25.0));
+	    log->info("[Epoch {}] 0.50: {}", epoch, hdr_value_at_percentile(histogram, 50.0));
+	    log->info("[Epoch {}] 0.75: {}", epoch, hdr_value_at_percentile(histogram, 75.0));
+	    log->info("[Epoch {}] 0.99: {}", epoch, hdr_value_at_percentile(histogram, 99.0));
+            hdr_reset(histogram);
+	    epoch_start = std::chrono::system_clock::now();
           }
 
           benchmark_end = std::chrono::system_clock::now();
