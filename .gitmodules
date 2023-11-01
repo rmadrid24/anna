@@ -2,3 +2,6 @@
 [submodule "common"]
 	path = common
 	url = https://github.com/rmadrid24/anna-common.git
+[submodule "HdrHistogram_c"]
+	path = HdrHistogram_c
+	url = https://github.com/HdrHistogram/HdrHistogram.git

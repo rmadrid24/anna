@@ -14,6 +14,7 @@
 
 #include "kvs/kvs_handlers.hpp"
 #include "yaml-cpp/yaml.h"
+#include "NvmMiddleware.h"
 
 // define server report threshold (in second)
 const unsigned kServerReportThreshold = 15;
@@ -43,6 +44,14 @@ ZmqUtilInterface *kZmqUtil = &zmq_util;
 
 HashRingUtil hash_ring_util;
 HashRingUtilInterface *kHashRingUtil = &hash_ring_util;
+
+nvmmiddleware::NvmMiddleware *mw_;
+
+void start_middleware(std::string db) {
+  int interactive = rand() % 16 + 1;
+  int batch = rand() % 16 + 1;
+  mw_ = new nvmmiddleware::NvmMiddleware(db, interactive, batch);
+}
 
 void run(unsigned thread_id, Address public_ip, Address private_ip,
          Address seed_ip, vector<Address> routing_ips,
@@ -217,7 +226,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
     MemoryPriorityKVS *priority_kvs = new MemoryPriorityKVS();
     priority_serializer = new MemoryPrioritySerializer(priority_kvs);
   } else if (kSelfTier == Tier::DISK) {
-    lww_serializer = new DiskLWWSerializer(thread_id);
+    lww_serializer = new DiskLWWSerializer(mw_);
     set_serializer = new DiskSetSerializer(thread_id);
     ordered_set_serializer = new DiskOrderedSetSerializer(thread_id);
     sk_causal_serializer = new DiskSingleKeyCausalSerializer(thread_id);
@@ -762,6 +771,9 @@ int main(int argc, char *argv[]) {
   YAML::Node monitoring = server["monitoring"];
   YAML::Node routing = server["routing"];
 
+  std::string mw_db = conf["pmem_db"].as<string>();
+  start_middleware(mw_db);
+
   for (const YAML::Node &address : routing) {
     routing_ips.push_back(address.as<Address>());
   }
@@ -793,6 +805,7 @@ int main(int argc, char *argv[]) {
   for (unsigned tid = 1; tid < kThreadNum; tid++) {
     worker_threads[tid].join();
   }
+  delete mw_;
 
   return 0;
 }

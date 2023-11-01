@@ -14,6 +14,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+echo $LD_LIBRARY_PATH
+echo $PKG_CONFIG_PATH
 args=( -j -b -t )
 containsElement() {
   local e match="$1"

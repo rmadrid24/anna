@@ -27,6 +27,7 @@ SET(KVS_SOURCE
   management_node_response_handler.cpp
   utils.cpp)
 
+MESSAGE(STATUS ${LIBPMEMKV_LIBRARIES})
 ADD_EXECUTABLE(anna-kvs ${KVS_SOURCE})
-TARGET_LINK_LIBRARIES(anna-kvs anna-hash-ring ${KV_LIBRARY_DEPENDENCIES})
-ADD_DEPENDENCIES(anna-kvs hydro-zmq zeromq zeromqcpp)
+TARGET_LINK_LIBRARIES(anna-kvs anna-hash-ring middleware ${KV_LIBRARY_DEPENDENCIES})
+ADD_DEPENDENCIES(anna-kvs hydro-zmq zeromq zeromqcpp middleware)

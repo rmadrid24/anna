@@ -34,7 +34,7 @@ void send_gossip(AddressKeysetMap &addr_keyset_map, SocketCache &pushers,
         type = stored_key_map[key].type_;
       }
 
-      auto res = process_get(key, serializers[type]);
+      auto res = process_get(key, serializers[type], stored_key_map[key].mwtype_);
 
       if (res.second == 0) {
         prepare_put_tuple(gossip_map[address], key, type, res.first);
@@ -51,17 +51,18 @@ void send_gossip(AddressKeysetMap &addr_keyset_map, SocketCache &pushers,
 }
 
 std::pair<string, AnnaError> process_get(const Key &key,
-                                         Serializer *serializer) {
+                                         Serializer *serializer, unsigned mwtype) {
   AnnaError error = AnnaError::NO_ERROR;
-  auto res = serializer->get(key, error);
+  auto res = serializer->get_mw(key, error, mwtype);
   return std::pair<string, AnnaError>(std::move(res), error);
 }
 
 void process_put(const Key &key, LatticeType lattice_type,
                  const string &payload, Serializer *serializer,
-                 map<Key, KeyProperty> &stored_key_map) {
-  stored_key_map[key].size_ = serializer->put(key, payload);
+                 map<Key, KeyProperty> &stored_key_map, unsigned mwtype) {
+  stored_key_map[key].size_ = serializer->put_mw(key, payload, mwtype);
   stored_key_map[key].type_ = std::move(lattice_type);
+  stored_key_map[key].mwtype_ = std::move(mwtype);
 }
 
 bool is_primary_replica(const Key &key,

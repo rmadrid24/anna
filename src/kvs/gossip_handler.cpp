@@ -47,7 +47,7 @@ void gossip_handler(unsigned &seed, string &serialized,
                      stored_key_map[key].type_);
         } else {
           process_put(tuple.key(), tuple.lattice_type(), tuple.payload(),
-                      serializers[tuple.lattice_type()], stored_key_map);
+                      serializers[tuple.lattice_type()], stored_key_map, tuple.mwtype());
         }
       } else {
         if (is_metadata(key)) { // forward the gossip
@@ -68,12 +68,12 @@ void gossip_handler(unsigned &seed, string &serialized,
               pushers, seed);
 
           pending_gossip[key].push_back(
-              PendingGossip(tuple.lattice_type(), tuple.payload()));
+              PendingGossip(tuple.lattice_type(), tuple.payload(), tuple.mwtype()));
         }
       }
     } else {
       pending_gossip[key].push_back(
-          PendingGossip(tuple.lattice_type(), tuple.payload()));
+          PendingGossip(tuple.lattice_type(), tuple.payload(), tuple.mwtype()));
     }
   }
 

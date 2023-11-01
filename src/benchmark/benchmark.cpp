@@ -93,8 +93,9 @@ string generate_key(unsigned n) {
 void run(const unsigned &thread_id,
          const vector<UserRoutingThread> &routing_threads,
          const vector<MonitoringThread> &monitoring_threads,
-         const Address &ip) {
-  KvsClient client(routing_threads, ip, thread_id, 10000);
+         const Address &ip,
+	 const unsigned mwtype) {
+  KvsClient client(routing_threads, ip, thread_id, 10000, mwtype);
   string log_file = "log_" + std::to_string(thread_id) + ".txt";
   string logger_name = "benchmark_log_" + std::to_string(thread_id);
   auto log = spdlog::basic_logger_mt(logger_name, log_file, true);
@@ -410,6 +411,7 @@ int main(int argc, char *argv[]) {
   kDefaultLocalReplication = conf["replication"]["local"].as<unsigned>();
 
   vector<std::thread> benchmark_threads;
+  unsigned mwtype = conf["middleware"]["type"].as<unsigned>();
 
   if (YAML::Node elb = user["routing-elb"]) {
     routing_ips.push_back(elb.as<string>());
@@ -431,7 +433,7 @@ int main(int argc, char *argv[]) {
   // NOTE: We create a new client for every single thread.
   for (unsigned thread_id = 1; thread_id < kBenchmarkThreadNum; thread_id++) {
     benchmark_threads.push_back(
-        std::thread(run, thread_id, routing_threads, monitoring_threads, ip));
+        std::thread(run, thread_id, routing_threads, monitoring_threads, ip, mwtype));
   }
 
   run(0, routing_threads, monitoring_threads, ip);

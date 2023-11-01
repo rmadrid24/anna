@@ -24,6 +24,7 @@
 #include "kvs_common.hpp"
 #include "lattices/lww_pair_lattice.hpp"
 #include "yaml-cpp/yaml.h"
+#include "NvmMiddleware.h"
 
 // Define the garbage collect threshold
 #define GARBAGE_COLLECT_THRESHOLD 10000000
@@ -49,7 +50,9 @@ typedef map<Address, set<Key>> AddressKeysetMap;
 class Serializer {
 public:
   virtual string get(const Key &key, AnnaError &error) = 0;
+  virtual string get_mw(const Key &key, AnnaError &error, unsigned mwtype) = 0;
   virtual unsigned put(const Key &key, const string &serialized) = 0;
+  virtual unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) = 0;
   virtual void remove(const Key &key) = 0;
   virtual ~Serializer(){};
 };
@@ -69,6 +72,9 @@ public:
 
     return serialize(val);
   }
+
+  string get_mw(const Key &key, AnnaError &error, unsigned mwtype) { return ""; }
+  unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) { return -1; }
 
   unsigned put(const Key &key, const string &serialized) {
     LWWPairLattice<string> val = deserialize_lww(serialized);
@@ -93,6 +99,9 @@ public:
     return serialize(val);
   }
 
+  string get_mw(const Key &key, AnnaError &error, unsigned mwtype) { return ""; }
+  unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) { return -1; }
+
   unsigned put(const Key &key, const string &serialized) {
     SetLattice<string> sl = deserialize_set(serialized);
     kvs_->put(key, sl);
@@ -112,6 +121,9 @@ public:
     auto val = kvs_->get(key, error);
     return serialize(val);
   }
+
+  string get_mw(const Key &key, AnnaError &error, unsigned mwtype) { return ""; }
+  unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) { return -1; }
 
   unsigned put(const Key &key, const string &serialized) {
     OrderedSetLattice<string> sl = deserialize_ordered_set(serialized);
@@ -135,6 +147,9 @@ public:
     }
     return serialize(val);
   }
+
+  string get_mw(const Key &key, AnnaError &error, unsigned mwtype) { return ""; }
+  unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) { return -1; }
 
   unsigned put(const Key &key, const string &serialized) {
     SingleKeyCausalValue causal_value = deserialize_causal(serialized);
@@ -160,6 +175,9 @@ public:
     }
     return serialize(val);
   }
+
+  string get_mw(const Key &key, AnnaError &error, unsigned mwtype) { return ""; }
+  unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) { return -1; }
 
   unsigned put(const Key &key, const string &serialized) {
     MultiKeyCausalValue multi_key_causal_value =
@@ -187,6 +205,9 @@ public:
     return serialize(val);
   }
 
+  string get_mw(const Key &key, AnnaError &error, unsigned mwtype) { return ""; }
+  unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) { return -1; }
+
   unsigned put(const Key &key, const string &serialized) {
     PriorityLattice<double, string> val = deserialize_priority(serialized);
     kvs_->put(key, val);
@@ -199,6 +220,7 @@ public:
 class DiskLWWSerializer : public Serializer {
   unsigned tid_;
   string ebs_root_;
+  nvmmiddleware::NvmMiddleware *mw;
 
 public:
   DiskLWWSerializer(unsigned &tid) : tid_(tid) {
@@ -211,6 +233,8 @@ public:
     }
     std::cout << "root " << ebs_root_ << std::endl;
   }
+  
+  DiskLWWSerializer(nvmmiddleware::NvmMiddleware *mw_ptr) : mw(mw_ptr) {}
 
   string get(const Key &key, AnnaError &error) {
     string res;
@@ -232,6 +256,42 @@ public:
         value.SerializeToString(&res);
       }
     }
+
+    return res;
+  }
+
+  string get_mw(const Key &key, AnnaError &error, unsigned mwtype) {
+    string res;
+    LWWValue value;
+    std::string input;
+    nvmmiddleware::Mode mode;
+    if (mwtype == 1) {
+      mode = nvmmiddleware::Mode::INTERACTIVE;
+    } else if (mwtype == 2) {
+      mode = nvmmiddleware::Mode::BATCH;
+    } else {
+      std::cerr << "Wrong middleware type." << std::endl;
+      error = AnnaError::WRONG_MWTYPE;
+      return res;
+    }
+
+    auto ft = mw->enqueue_get(&key, &input, mode);
+    auto status = ft.get();
+    if(status == pmem::kv::status::OK){
+      if (!value.ParseFromString(input)) {
+        std::cerr << "Failed to parse payload." << std::endl;
+        error = AnnaError::KEY_DNE;
+      } else {
+        if (value.value() == "") {
+          error = AnnaError::KEY_DNE;
+        } else {
+          value.SerializeToString(&res);
+        }
+      }
+    } else {
+      error = AnnaError::KEY_DNE;
+    }
+
     return res;
   }
 
@@ -273,12 +333,56 @@ public:
     }
   }
 
+  unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) {
+    LWWValue input_value;
+    input_value.ParseFromString(serialized);
+
+    LWWValue original_value;
+
+    std::string output;
+    nvmmiddleware::Mode mode;
+    if (mwtype == 1) {
+      mode = nvmmiddleware::Mode::INTERACTIVE;
+    } else if (mwtype == 2) {
+      mode = nvmmiddleware::Mode::BATCH;
+    } else {
+      std::cerr << "Wrong middleware type." << std::endl;
+      return -1;
+    }
+
+    std::string val;
+    auto ft_orig = mw->enqueue_get(&key, &val, mode);
+    auto status = ft_orig.get();
+    if (status == pmem::kv::status::OK) {
+      original_value.ParseFromString(val);
+      if (input_value.timestamp() >= original_value.timestamp()) {
+        auto ft = mw->enqueue_put(&key, &output, mode);
+	status = ft.get();
+	if(status != pmem::kv::status::OK){
+    	  std::cerr << "Failed to write payload" << std::endl;
+	  return 0;
+      	}
+      }
+    } else if (status == pmem::kv::status::NOT_FOUND) {
+      auto ft = mw->enqueue_put(&key, &output, mode);
+      status = ft.get();
+      if(status != pmem::kv::status::OK){
+        std::cerr << "Failed to write payload" << std::endl;
+      	return 0;
+      }
+    } else {
+      std::cerr << "Error putting key" << std::endl;
+      return 0;
+    }
+    return 1;
+  }
+
   void remove(const Key &key) {
-    string fname = ebs_root_ + "ebs_" + std::to_string(tid_) + "/" + key;
+    /*string fname = ebs_root_ + "ebs_" + std::to_string(tid_) + "/" + key;
 
     if (std::remove(fname.c_str()) != 0) {
       std::cerr << "Error deleting file" << std::endl;
-    }
+    }*/
   }
 };
 
@@ -319,6 +423,9 @@ public:
     }
     return res;
   }
+
+  string get_mw(const Key &key, AnnaError &error, unsigned mwtype) { return ""; }
+  unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) { return -1; }
 
   unsigned put(const Key &key, const string &serialized) {
     SetValue input_value;
@@ -411,6 +518,9 @@ public:
     }
     return res;
   }
+
+  string get_mw(const Key &key, AnnaError &error, unsigned mwtype) { return ""; }
+  unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) { return -1; }
 
   unsigned put(const Key &key, const string &serialized) {
     SetValue input_value;
@@ -507,6 +617,9 @@ public:
     }
     return res;
   }
+
+  string get_mw(const Key &key, AnnaError &error, unsigned mwtype) { return ""; }
+  unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) { return -1; }
 
   unsigned put(const Key &key, const string &serialized) {
     SingleKeyCausalValue input_value;
@@ -624,6 +737,9 @@ public:
     }
     return res;
   }
+
+  string get_mw(const Key &key, AnnaError &error, unsigned mwtype) { return ""; }
+  unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) { return -1; }
 
   unsigned put(const Key &key, const string &serialized) {
     MultiKeyCausalValue input_value;
@@ -774,6 +890,9 @@ public:
     return res;
   }
 
+  string get_mw(const Key &key, AnnaError &error, unsigned mwtype) { return ""; }
+  unsigned put_mw(const Key &key, const string &serialized, unsigned mwtype) { return -1; }
+
   unsigned put(const Key &key, const string &serialized) override {
     PriorityValue input_value;
     input_value.ParseFromString(serialized);
@@ -816,23 +935,25 @@ using SerializerMap =
 struct PendingRequest {
   PendingRequest() {}
   PendingRequest(RequestType type, LatticeType lattice_type, string payload,
-                 Address addr, string response_id)
+                 Address addr, string response_id, unsigned mwtype_)
       : type_(type), lattice_type_(std::move(lattice_type)),
-        payload_(std::move(payload)), addr_(addr), response_id_(response_id) {}
+        payload_(std::move(payload)), addr_(addr), response_id_(response_id), mwtype(mwtype_) {}
 
   RequestType type_;
   LatticeType lattice_type_;
   string payload_;
   Address addr_;
   string response_id_;
+  unsigned mwtype;
 };
 
 struct PendingGossip {
   PendingGossip() {}
-  PendingGossip(LatticeType lattice_type, string payload)
-      : lattice_type_(std::move(lattice_type)), payload_(std::move(payload)) {}
+  PendingGossip(LatticeType lattice_type, string payload, unsigned mwtype_)
+      : lattice_type_(std::move(lattice_type)), payload_(std::move(payload)), mwtype(mwtype_) {}
   LatticeType lattice_type_;
   string payload_;
+  unsigned mwtype;
 };
 
 #endif // INCLUDE_KVS_SERVER_UTILS_HPP_
