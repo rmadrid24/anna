@@ -12,7 +12,6 @@
 #include <chrono>
 #include <atomic>
 #include <tbb/concurrent_queue.h>
-#include <numa.h>
 
 typedef std::shared_ptr<std::function<void()>> task_type;
 
