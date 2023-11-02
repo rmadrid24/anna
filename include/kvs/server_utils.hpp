@@ -277,7 +277,7 @@ public:
 
     auto ft = mw->enqueue_get(&key, &input, mode);
     auto status = ft.get();
-    if(status == pmem::kv::status::OK){
+    if(status == nvmmiddleware::Status::OK){
       if (!value.ParseFromString(input)) {
         std::cerr << "Failed to parse payload." << std::endl;
         error = AnnaError::KEY_DNE;
@@ -353,20 +353,20 @@ public:
     std::string val;
     auto ft_orig = mw->enqueue_get(&key, &val, mode);
     auto status = ft_orig.get();
-    if (status == pmem::kv::status::OK) {
+    if (status == nvmmiddleware::Status::OK) {
       original_value.ParseFromString(val);
       if (input_value.timestamp() >= original_value.timestamp()) {
         auto ft = mw->enqueue_put(&key, &output, mode);
 	status = ft.get();
-	if(status != pmem::kv::status::OK){
+	if(status != nvmmiddleware::Status::OK){
     	  std::cerr << "Failed to write payload" << std::endl;
 	  return 0;
       	}
       }
-    } else if (status == pmem::kv::status::NOT_FOUND) {
+    } else if (status == nvmmiddleware::Status::KEY_NOT_FOUND) {
       auto ft = mw->enqueue_put(&key, &output, mode);
       status = ft.get();
-      if(status != pmem::kv::status::OK){
+      if(status != nvmmiddleware::Status::OK){
         std::cerr << "Failed to write payload" << std::endl;
       	return 0;
       }

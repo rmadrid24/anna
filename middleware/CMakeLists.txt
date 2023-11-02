@@ -7,14 +7,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package (Threads REQUIRED)
 find_package(OpenMP REQUIRED)
-find_package(PkgConfig QUIET REQUIRED)
+#find_package(PkgConfig QUIET REQUIRED)
 find_package(TBB REQUIRED REQUIRED)
 
-if(PKG_CONFIG_FOUND)
-  pkg_check_modules(LIBPMEMKV REQUIRED libpmemkv)
-else()
-  message(FATAL_ERROR "pkg-config not found")
-endif()
+#if(PKG_CONFIG_FOUND)
+#  pkg_check_modules(LIBPMEMKV REQUIRED libpmemkv)
+#else()
+#  message(FATAL_ERROR "pkg-config not found")
+#endif()
 
 file(
         GLOB
@@ -23,5 +23,6 @@ file(
 )
 
 add_library(middleware STATIC ${SRC_FILES})
-target_link_libraries(middleware ${LIBPMEMKV_LIBRARIES} hdr_histogram TBB::tbb)
+#target_link_libraries(middleware ${LIBPMEMKV_LIBRARIES} hdr_histogram TBB::tbb)
+target_link_libraries(middleware hdr_histogram TBB::tbb)
 ADD_DEPENDENCIES(middleware hdr_histogram)

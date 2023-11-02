@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <tbb/concurrent_queue.h>
 #include <math.h>
+#include <fstream>
 
 #define REWARD_SAMPLE 200
 
@@ -66,6 +67,7 @@ namespace nvmmiddleware
 {
     enum Mode { INTERACTIVE, BATCH };
     enum EventType { READ, WRITE };
+    enum Status { OK, KEY_NOT_FOUND, ERROR };
     
     struct AppState {
 	    int id;
@@ -108,7 +110,7 @@ namespace nvmmiddleware
 
     class Reply {
 	    public:
-		    pmem::kv::status status;
+		    Status status;
 		    std::string value;
 		    Reply() {};
     };
@@ -117,12 +119,10 @@ namespace nvmmiddleware
     {
     public:
         NvmMiddleware(std::string dbPath, int interactiveThreads, int batchThreads);
-	std::future<pmem::kv::status> enqueue_put(const std::string *k, const std::string *value, Mode mode);
-	std::future<pmem::kv::status> enqueue_get(const std::string *k, std::string *reply, Mode mode);
-	//future<bool> enqueue_get(const Request &request, Reply *reply);
-	//future<bool> enqueue_put(const Request &request, Reply *reply);
-	pmem::kv::status direct_put(const std::string *k, const std::string *value);
-	pmem::kv::status direct_get(const std::string *k, std::string *reply);
+	std::future<Status> enqueue_put(const std::string *k, const std::string *value, Mode mode);
+	std::future<Status> enqueue_get(const std::string *k, std::string *reply, Mode mode);
+	//Status direct_put(const std::string *k, const std::string *value);
+	//Status direct_get(const std::string *k, std::string *reply);
 	void close();
         void incrementInteractiveThreads();
 	void decreaseInteractiveThreads();
@@ -142,17 +142,13 @@ namespace nvmmiddleware
 	~NvmMiddleware();
 
     private:
-	pmem::kv::status pmemkv_put(pmem::kv::db *db, const std::string *k, const std::string *value);
-	pmem::kv::status pmemkv_get(pmem::kv::db *db, const std::string *k, std::string *reply);
-	//bool pmemkv_put(pmem::kv::db *db, shared_ptr<Request> req, Reply *reply);
-        //bool pmemkv_get(pmem::kv::db *db, shared_ptr<Request> req, Reply *reply);
-	void start_db(std::string dbPath);
+	Status put(const std::string *k, const std::string *value);
+	Status get(const std::string *k, std::string *reply);
 	void resetRewardCycle();
         void init_hdr();
 	void register_call(nvmmiddleware::Mode mode);
 	ThreadPool *interactive_pool_ = NULL;
         ThreadPool *batch_pool_ = NULL;
-        pmem::kv::db *kv_ = NULL;
 	std::atomic<long> avg_get_pmemkv{0};
 	std::atomic<long> avg_put_pmemkv{0};
 	std::atomic<int> total_writes_interactive{0};
@@ -178,7 +174,7 @@ namespace nvmmiddleware
 	std::atomic<bool> stop{false};
 	std::thread int_tracker;
 	std::thread batch_tracker;
-
+	std::string path;
     };
 }
 #endif
