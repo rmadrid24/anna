@@ -5,7 +5,6 @@
 #include <future>
 #include <atomic>
 #include <chrono>
-#include <libpmemkv.hpp>
 #include "ThreadPool.h"
 #include "timer.h"
 #include <hdr/hdr_histogram.h>
