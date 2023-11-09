@@ -47,9 +47,9 @@ HashRingUtilInterface *kHashRingUtil = &hash_ring_util;
 
 nvmmiddleware::NvmMiddleware *mw_;
 
-void start_middleware(std::string db) {
-  int interactive = rand() % 16 + 1;
-  int batch = rand() % 16 + 1;
+void start_middleware(std::string db, unsigned interactive, unsigned batch) {
+  //int interactive = rand() % 16 + 1;
+  //int batch = rand() % 16 + 1;
   mw_ = new nvmmiddleware::NvmMiddleware(db, interactive, batch);
 }
 
@@ -771,8 +771,10 @@ int main(int argc, char *argv[]) {
   YAML::Node monitoring = server["monitoring"];
   YAML::Node routing = server["routing"];
 
-  std::string mw_db = conf["pmem_db"].as<string>();
-  start_middleware(mw_db);
+  std::string mw_db = conf["middleware"]["path"].as<string>();
+  unsigned interactive_threads = conf["middleware"]["interactive"].as<unsigned>();
+  unsigned batch_threads = conf["middleware"]["batch"].as<unsigned>();
+  start_middleware(mw_db, interactive_threads, batch_threads);
 
   for (const YAML::Node &address : routing) {
     routing_ips.push_back(address.as<Address>());
