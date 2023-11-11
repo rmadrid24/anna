@@ -436,5 +436,5 @@ int main(int argc, char *argv[]) {
         std::thread(run, thread_id, routing_threads, monitoring_threads, ip, mwtype));
   }
 
-  run(0, routing_threads, monitoring_threads, ip);
+  run(0, routing_threads, monitoring_threads, ip, 1);
 }
