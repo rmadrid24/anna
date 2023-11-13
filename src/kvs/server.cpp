@@ -771,6 +771,13 @@ int main(int argc, char *argv[]) {
   YAML::Node monitoring = server["monitoring"];
   YAML::Node routing = server["routing"];
 
+  if (kSelfTier == Tier::DISK) {
+    std::string mw_db = conf["middleware"]["path"].as<string>();
+    unsigned interactive_threads = conf["middleware"]["interactive"].as<unsigned>();
+    unsigned batch_threads = conf["middleware"]["batch"].as<unsigned>();
+    start_middleware(mw_db, interactive_threads, batch_threads);
+  }
+
   std::string mw_db = conf["middleware"]["path"].as<string>();
   unsigned interactive_threads = conf["middleware"]["interactive"].as<unsigned>();
   unsigned batch_threads = conf["middleware"]["batch"].as<unsigned>();
