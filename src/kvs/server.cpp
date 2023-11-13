@@ -778,11 +778,6 @@ int main(int argc, char *argv[]) {
     start_middleware(mw_db, interactive_threads, batch_threads);
   }
 
-  std::string mw_db = conf["middleware"]["path"].as<string>();
-  unsigned interactive_threads = conf["middleware"]["interactive"].as<unsigned>();
-  unsigned batch_threads = conf["middleware"]["batch"].as<unsigned>();
-  start_middleware(mw_db, interactive_threads, batch_threads);
-
   for (const YAML::Node &address : routing) {
     routing_ips.push_back(address.as<Address>());
   }
