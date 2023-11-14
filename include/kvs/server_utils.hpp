@@ -356,7 +356,7 @@ public:
     if (status == nvmmiddleware::Status::OK) {
       original_value.ParseFromString(val);
       if (input_value.timestamp() >= original_value.timestamp()) {
-        auto ft = mw->enqueue_put(&key, serialized, mode);
+        auto ft = mw->enqueue_put(&key, &serialized, mode);
 	status = ft.get();
 	if(status != nvmmiddleware::Status::OK){
     	  std::cerr << "Failed to write payload" << std::endl;
@@ -364,7 +364,7 @@ public:
       	}
       }
     } else if (status == nvmmiddleware::Status::KEY_NOT_FOUND) {
-      auto ft = mw->enqueue_put(&key, serialized, mode);
+      auto ft = mw->enqueue_put(&key, &serialized, mode);
       status = ft.get();
       if(status != nvmmiddleware::Status::OK){
         std::cerr << "Failed to write payload" << std::endl;
