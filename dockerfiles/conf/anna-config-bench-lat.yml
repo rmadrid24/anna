@@ -1,21 +1,17 @@
-server:
+user:
   monitoring:
       - 192.168.1.10
   routing: 
       - 192.168.1.10
-  seed_ip: 192.168.1.10
-  public_ip: 192.168.1.11
-  private_ip: 192.168.1.11
-  mgmt_ip: "NULL"
+  ip: 192.168.1.13
 policy:
   elasticity: false
   selective-rep: false
   tiering: false
-ebs: /data
+benchmark:
+  - 192.168.1.13
 middleware:
-  path: "/pmem"
-  interactive: 10
-  batch: 10
+  type: 1
 capacities: # in GB
   memory-cap: 1
   ebs-cap: 80
@@ -23,7 +19,7 @@ threads:
   memory: 1
   ebs: 20
   routing: 4
-  benchmark: 1
+  benchmark: 30
 replication:
   memory: 0
   ebs: 1

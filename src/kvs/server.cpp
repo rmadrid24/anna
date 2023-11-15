@@ -14,6 +14,7 @@
 
 #include "kvs/kvs_handlers.hpp"
 #include "yaml-cpp/yaml.h"
+#include "NvmMiddleware.h"
 
 // define server report threshold (in second)
 const unsigned kServerReportThreshold = 15;
@@ -43,6 +44,14 @@ ZmqUtilInterface *kZmqUtil = &zmq_util;
 
 HashRingUtil hash_ring_util;
 HashRingUtilInterface *kHashRingUtil = &hash_ring_util;
+
+nvmmiddleware::NvmMiddleware *mw_;
+
+void start_middleware(std::string db, unsigned interactive, unsigned batch) {
+  //int interactive = rand() % 16 + 1;
+  //int batch = rand() % 16 + 1;
+  mw_ = new nvmmiddleware::NvmMiddleware(db, interactive, batch);
+}
 
 void run(unsigned thread_id, Address public_ip, Address private_ip,
          Address seed_ip, vector<Address> routing_ips,
@@ -190,6 +199,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
   SerializerMap serializers;
 
   Serializer *lww_serializer;
+  Serializer *lww_mw_serializer;
   Serializer *set_serializer;
   Serializer *ordered_set_serializer;
   Serializer *sk_causal_serializer;
@@ -199,6 +209,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
   if (kSelfTier == Tier::MEMORY) {
     MemoryLWWKVS *lww_kvs = new MemoryLWWKVS();
     lww_serializer = new MemoryLWWSerializer(lww_kvs);
+    lww_mw_serializer = lww_serializer;
 
     MemorySetKVS *set_kvs = new MemorySetKVS();
     set_serializer = new MemorySetSerializer(set_kvs);
@@ -218,6 +229,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
     priority_serializer = new MemoryPrioritySerializer(priority_kvs);
   } else if (kSelfTier == Tier::DISK) {
     lww_serializer = new DiskLWWSerializer(thread_id);
+    lww_mw_serializer = new DiskLWWMWSerializer(mw_);
     set_serializer = new DiskSetSerializer(thread_id);
     ordered_set_serializer = new DiskOrderedSetSerializer(thread_id);
     sk_causal_serializer = new DiskSingleKeyCausalSerializer(thread_id);
@@ -229,6 +241,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
   }
 
   serializers[LatticeType::LWW] = lww_serializer;
+  serializers[LatticeType::LWW_MW] = lww_mw_serializer;
   serializers[LatticeType::SET] = set_serializer;
   serializers[LatticeType::ORDERED_SET] = ordered_set_serializer;
   serializers[LatticeType::SINGLE_CAUSAL] = sk_causal_serializer;
@@ -761,6 +774,13 @@ int main(int argc, char *argv[]) {
   Address mgmt_ip = server["mgmt_ip"].as<string>();
   YAML::Node monitoring = server["monitoring"];
   YAML::Node routing = server["routing"];
+
+  if (kSelfTier == Tier::DISK) {
+    std::string mw_db = conf["middleware"]["path"].as<string>();
+    unsigned interactive_threads = conf["middleware"]["interactive"].as<unsigned>();
+    unsigned batch_threads = conf["middleware"]["batch"].as<unsigned>();
+    start_middleware(mw_db, interactive_threads, batch_threads);
+  }
 
   for (const YAML::Node &address : routing) {
     routing_ips.push_back(address.as<Address>());

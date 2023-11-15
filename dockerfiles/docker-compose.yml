@@ -9,15 +9,15 @@ services:
       anna_network:
         ipv4_address: 192.168.1.10
     ulimits:
-      nproc: 65535
-      nofile:
-        soft: 20000
-        hard: 40000
+      core:
+        soft: -1
+        hard: -1
   ebs:
     image: anna-kvs
     command: bash start-anna.sh ebs
     volumes:
       - ./conf/anna-config-ebs.yml:/hydro/anna/conf/anna-config.yml
+      - /mnt/pmem0/pmem:/pmem
       - /mnt/pmem0/data:/data
     networks:
       anna_network:
@@ -32,6 +32,16 @@ services:
     networks:
       anna_network:
         ipv4_address: 192.168.1.12
+    depends_on:
+      - mem
+  bench-lat:
+    image: anna-kvs
+    command: bash start-anna.sh b
+    volumes:
+      - ./conf/anna-config-bench-lat.yml:/hydro/anna/conf/anna-config.yml
+    networks:
+      anna_network:
+        ipv4_address: 192.168.1.13
     depends_on:
       - mem
 networks:

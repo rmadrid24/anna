@@ -22,12 +22,12 @@ capacities: # in GB
   memory-cap: 1
   ebs-cap: 80
 threads:
-  memory: 10
-  ebs: 10
+  memory: 1
+  ebs: 20
   routing: 4
   benchmark: 1
 replication:
-  memory: 1
+  memory: 0
   ebs: 1
-  minimum: 1
+  minimum: 0
   local: 1

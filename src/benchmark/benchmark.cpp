@@ -228,7 +228,7 @@ void run(const unsigned &thread_id,
             LWWPairLattice<string> val(
                 TimestampValuePair<string>(ts, string(length, 'a')));
 
-            client.put_async(key, serialize(val), LatticeType::LWW);
+            client.put_async(key, serialize(val), LatticeType::LWW_MW);
             receive(&client);
             count += 1;
 	    write_ops += 1;
@@ -240,7 +240,7 @@ void run(const unsigned &thread_id,
 
             client.get_async(key);
             receive(&client);
-            client.put_async(key, serialize(val), LatticeType::LWW);
+            client.put_async(key, serialize(val), LatticeType::LWW_MW);
             receive(&client);
 	    count += 2;
 	    readmodifywrite_ops += 1;
@@ -370,7 +370,7 @@ void run(const unsigned &thread_id,
           LWWPairLattice<string> val(
               TimestampValuePair<string>(ts, string(length, 'a')));
 
-          client.put_async(generate_key(i), serialize(val), LatticeType::LWW);
+          client.put_async(generate_key(i), serialize(val), LatticeType::LWW_MW);
           receive(&client);
         }
 

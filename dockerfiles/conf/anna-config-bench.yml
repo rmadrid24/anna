@@ -10,16 +10,18 @@ policy:
   tiering: false
 benchmark:
   - 192.168.1.12
+middleware:
+  type: 2
 capacities: # in GB
   memory-cap: 1
   ebs-cap: 80
 threads:
   memory: 1
-  ebs: 1
+  ebs: 20
   routing: 4
-  benchmark: 10
+  benchmark: 30
 replication:
-  memory: 1
+  memory: 0
   ebs: 1
-  minimum: 1
+  minimum: 0
   local: 1

@@ -14,71 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-if [ -z "$1" ]; then
-  echo "No argument provided. Exiting."
-  exit 1
-fi
-
-# A helper function that takes a space separated list and generates a string
-# that parses as a YAML list.
-gen_yml_list() {
-  IFS=' ' read -r -a ARR <<< $1
-  RESULT=""
-
-  for IP in "${ARR[@]}"; do
-    RESULT=$"$RESULT        - $IP\n"
-  done
-
-  echo -e "$RESULT"
-}
-
 cd $HYDRO_HOME/anna
-mkdir -p conf
-
-# Check if the context that we are running in is EC2 or not. If it is, we
-# determine separate private and public IP addresses. Otherwise, we use the
-# same one for both.
-#IS_EC2=`curl -s http://169.254.169.254`
-#PRIVATE_IP=`ifconfig eth0 | grep 'inet' | grep -v inet6 | sed -e 's/^[ \t]*//' | cut -d' ' -f2`
-#if [[ ! -z "$IS_EC2" ]]; then
-#  PUBLIC_IP=`curl http://169.254.169.254/latest/meta-data/public-ipv4`
-#else
-#  PUBLIC_IP=$PRIVATE_IP
-#fi
-
-echo $PRIVATE_IP
-echo $PUBLIC_IP
-
-# Download latest version of the code from relevant repository & branch -- if
-# none are specified, we use hydro-project/anna by default.
-git remote remove origin
-if [[ -z "$REPO_ORG" ]]; then
-  REPO_ORG="rmadrid24"
-fi
-
-if [[ -z "$REPO_BRANCH" ]]; then
-  REPO_BRANCH="anna-test"
-fi
-
-git remote add origin https://github.com/$REPO_ORG/anna
-while ! (git fetch -p origin)
-do
-  echo "git fetch failed, retrying"
-done
-git checkout -b brnch origin/$REPO_BRANCH
-git submodule sync
-git submodule update
-
-ls build
-
-# Compile the latest version of the code on the branch we just check out.
-cd build && make -j2 && cd ..
-
-# Do not start the server until conf/anna-config.yml has been copied onto this
-# pod -- if we start earlier, we won't now how to configure the system.
-#while [[ ! -f "conf/anna-config.yml" ]]; do
-#  continue
-#done
 
 echo "Starting Anna KVS"
 

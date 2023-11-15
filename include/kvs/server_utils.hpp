@@ -24,6 +24,7 @@
 #include "kvs_common.hpp"
 #include "lattices/lww_pair_lattice.hpp"
 #include "yaml-cpp/yaml.h"
+#include "NvmMiddleware.h"
 
 // Define the garbage collect threshold
 #define GARBAGE_COLLECT_THRESHOLD 10000000
@@ -279,6 +280,105 @@ public:
     if (std::remove(fname.c_str()) != 0) {
       std::cerr << "Error deleting file" << std::endl;
     }
+  }
+};
+
+class DiskLWWMWSerializer : public Serializer {
+  unsigned tid_;
+  string ebs_root_;
+  nvmmiddleware::NvmMiddleware *mw;
+
+public:
+  DiskLWWMWSerializer(nvmmiddleware::NvmMiddleware *mw_ptr) : mw(mw_ptr) {}
+
+  string get(const Key &key, AnnaError &error) {
+    string res;
+    LWWValue value;
+    std::string input;
+    nvmmiddleware::Mode mode = nvmmiddleware::Mode::INTERACTIVE;
+    /*if (mwtype == 1) {
+      mode = nvmmiddleware::Mode::INTERACTIVE;
+    } else if (mwtype == 2) {
+      mode = nvmmiddleware::Mode::BATCH;
+    } else {
+      std::cerr << "Wrong middleware type." << std::endl;
+      error = AnnaError::WRONG_MWTYPE;
+      return res;
+    }*/
+
+    auto ft = mw->enqueue_get(&key, &input, mode);
+    auto status = ft.get();
+    if(status == nvmmiddleware::Status::OK){
+      if (!value.ParseFromString(input)) {
+        std::cerr << "Failed to parse payload." << std::endl;
+        error = AnnaError::KEY_DNE;
+      } else {
+        if (value.value() == "") {
+          error = AnnaError::KEY_DNE;
+        } else {
+          value.SerializeToString(&res);
+        }
+      }
+    } else {
+      error = AnnaError::KEY_DNE;
+    }
+
+    return res;
+  }
+
+  unsigned put(const Key &key, const string &serialized) {
+    LWWValue input_value;
+    input_value.ParseFromString(serialized);
+
+    LWWValue original_value;
+
+    std::string output;
+    nvmmiddleware::Mode mode = nvmmiddleware::Mode::INTERACTIVE;
+    /*if (mwtype == 1) {
+      mode = nvmmiddleware::Mode::INTERACTIVE;
+    } else if (mwtype == 2) {
+      mode = nvmmiddleware::Mode::BATCH;
+    } else {
+      std::cerr << "Wrong middleware type." << std::endl;
+      return -1;
+    }*/
+
+    std::string val;
+    std::cout << mw << std::endl;
+    auto ft_orig = mw->enqueue_get(&key, &val, mode);
+    auto status = ft_orig.get();
+    if (status == nvmmiddleware::Status::OK) {
+      original_value.ParseFromString(val);
+      if (input_value.timestamp() >= original_value.timestamp()) {
+        input_value.SerializeToString(&output);
+	auto ft = mw->enqueue_put(&key, &output, mode);
+	status = ft.get();
+	if(status != nvmmiddleware::Status::OK){
+    	  std::cerr << "Failed to write payload" << std::endl;
+	  return 0;
+      	}
+      }
+    } else if (status == nvmmiddleware::Status::KEY_NOT_FOUND) {
+      input_value.SerializeToString(&output);
+      auto ft = mw->enqueue_put(&key, &output, mode);
+      status = ft.get();
+      if(status != nvmmiddleware::Status::OK){
+        std::cerr << "Failed to write payload" << std::endl;
+      	return 0;
+      }
+    } else {
+      std::cerr << "Error putting key" << std::endl;
+      return 0;
+    }
+    return 1;
+  }
+
+  void remove(const Key &key) {
+    /*string fname = ebs_root_ + "ebs_" + std::to_string(tid_) + "/" + key;
+
+    if (std::remove(fname.c_str()) != 0) {
+      std::cerr << "Error deleting file" << std::endl;
+    }*/
   }
 };
 
