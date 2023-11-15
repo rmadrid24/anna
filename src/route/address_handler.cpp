@@ -55,12 +55,14 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
               global_hash_rings, local_hash_rings, key_replication_map, pushers,
               {tier}, succeed, seed);
 
+	  log->info("key {} threads responsible {}", key, threads.size());
           if (threads.size() > 0) {
             break;
           }
 
           if (!succeed) { // this means we don't have the replication factor for
                           // the key
+            log->info("Issue with replication for key {}", key);
             pending_requests[key].push_back(std::pair<Address, string>(
                 addr_request.response_address(), addr_request.request_id()));
             return;
