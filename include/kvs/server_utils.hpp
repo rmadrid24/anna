@@ -49,8 +49,8 @@ typedef map<Address, set<Key>> AddressKeysetMap;
 
 class Serializer {
 public:
-  virtual string get(const Key &key, AnnaError &error) = 0;
-  virtual unsigned put(const Key &key, const string &serialized) = 0;
+  virtual string get(const Key &key, AnnaError &error, unsigned mwtype) = 0;
+  virtual unsigned put(const Key &key, const string &serialized, unsigned mwtype) = 0;
   virtual void remove(const Key &key) = 0;
   virtual ~Serializer(){};
 };
@@ -61,7 +61,7 @@ class MemoryLWWSerializer : public Serializer {
 public:
   MemoryLWWSerializer(MemoryLWWKVS *kvs) : kvs_(kvs) {}
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     auto val = kvs_->get(key, error);
 
     if (val.reveal().value == "") {
@@ -71,7 +71,7 @@ public:
     return serialize(val);
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     LWWPairLattice<string> val = deserialize_lww(serialized);
     kvs_->put(key, val);
     return kvs_->size(key);
@@ -86,7 +86,7 @@ class MemorySetSerializer : public Serializer {
 public:
   MemorySetSerializer(MemorySetKVS *kvs) : kvs_(kvs) {}
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     auto val = kvs_->get(key, error);
     if (val.size().reveal() == 0) {
       error = AnnaError::KEY_DNE;
@@ -94,7 +94,7 @@ public:
     return serialize(val);
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     SetLattice<string> sl = deserialize_set(serialized);
     kvs_->put(key, sl);
     return kvs_->size(key);
@@ -109,12 +109,12 @@ class MemoryOrderedSetSerializer : public Serializer {
 public:
   MemoryOrderedSetSerializer(MemoryOrderedSetKVS *kvs) : kvs_(kvs) {}
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     auto val = kvs_->get(key, error);
     return serialize(val);
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     OrderedSetLattice<string> sl = deserialize_ordered_set(serialized);
     kvs_->put(key, sl);
     return kvs_->size(key);
@@ -129,7 +129,7 @@ class MemorySingleKeyCausalSerializer : public Serializer {
 public:
   MemorySingleKeyCausalSerializer(MemorySingleKeyCausalKVS *kvs) : kvs_(kvs) {}
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     auto val = kvs_->get(key, error);
     if (val.reveal().value.size().reveal() == 0) {
       error = AnnaError::KEY_DNE;
@@ -137,7 +137,7 @@ public:
     return serialize(val);
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     SingleKeyCausalValue causal_value = deserialize_causal(serialized);
     VectorClockValuePair<SetLattice<string>> p =
         to_vector_clock_value_pair(causal_value);
@@ -154,7 +154,7 @@ class MemoryMultiKeyCausalSerializer : public Serializer {
 public:
   MemoryMultiKeyCausalSerializer(MemoryMultiKeyCausalKVS *kvs) : kvs_(kvs) {}
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     auto val = kvs_->get(key, error);
     if (val.reveal().value.size().reveal() == 0) {
       error = AnnaError::KEY_DNE;
@@ -162,7 +162,7 @@ public:
     return serialize(val);
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     MultiKeyCausalValue multi_key_causal_value =
         deserialize_multi_key_causal(serialized);
     MultiKeyCausalPayload<SetLattice<string>> p =
@@ -180,7 +180,7 @@ class MemoryPrioritySerializer : public Serializer {
 public:
   MemoryPrioritySerializer(MemoryPriorityKVS *kvs) : kvs_(kvs) {}
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     auto val = kvs_->get(key, error);
     if (val.reveal().value == "") {
       error = AnnaError::KEY_DNE;
@@ -188,7 +188,7 @@ public:
     return serialize(val);
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     PriorityLattice<double, string> val = deserialize_priority(serialized);
     kvs_->put(key, val);
     return kvs_->size(key);
@@ -213,7 +213,7 @@ public:
     std::cout << "root " << ebs_root_ << std::endl;
   }
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     string res;
     LWWValue value;
     //std::cout << "Reading from disk" << std::endl;
@@ -236,7 +236,7 @@ public:
     return res;
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     LWWValue input_value;
     input_value.ParseFromString(serialized);
 
@@ -291,12 +291,12 @@ class DiskLWWMWSerializer : public Serializer {
 public:
   DiskLWWMWSerializer(nvmmiddleware::NvmMiddleware *mw_ptr) : mw(mw_ptr) {}
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     string res;
     LWWValue value;
     std::string input;
-    nvmmiddleware::Mode mode = nvmmiddleware::Mode::INTERACTIVE;
-    /*if (mwtype == 1) {
+    nvmmiddleware::Mode mode;
+    if (mwtype == 1) {
       mode = nvmmiddleware::Mode::INTERACTIVE;
     } else if (mwtype == 2) {
       mode = nvmmiddleware::Mode::BATCH;
@@ -304,7 +304,7 @@ public:
       std::cerr << "Wrong middleware type." << std::endl;
       error = AnnaError::WRONG_MWTYPE;
       return res;
-    }*/
+    }
 
     auto ft = mw->enqueue_get(&key, &input, mode);
     auto status = ft.get();
@@ -326,22 +326,22 @@ public:
     return res;
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     LWWValue input_value;
     input_value.ParseFromString(serialized);
 
     LWWValue original_value;
 
     std::string output;
-    nvmmiddleware::Mode mode = nvmmiddleware::Mode::INTERACTIVE;
-    /*if (mwtype == 1) {
+    nvmmiddleware::Mode mode;
+    if (mwtype == 1) {
       mode = nvmmiddleware::Mode::INTERACTIVE;
     } else if (mwtype == 2) {
       mode = nvmmiddleware::Mode::BATCH;
     } else {
       std::cerr << "Wrong middleware type." << std::endl;
       return -1;
-    }*/
+    }
 
     std::string val;
     std::cout << mw << std::endl;
@@ -397,7 +397,7 @@ public:
     }
   }
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     string res;
     SetValue value;
 
@@ -420,7 +420,7 @@ public:
     return res;
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     SetValue input_value;
     input_value.ParseFromString(serialized);
 
@@ -493,7 +493,7 @@ public:
     }
   }
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     string res;
     SetValue value;
 
@@ -512,7 +512,7 @@ public:
     return res;
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     SetValue input_value;
     input_value.ParseFromString(serialized);
 
@@ -585,7 +585,7 @@ public:
     }
   }
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     string res;
     SingleKeyCausalValue value;
 
@@ -608,7 +608,7 @@ public:
     return res;
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     SingleKeyCausalValue input_value;
     input_value.ParseFromString(serialized);
 
@@ -702,7 +702,7 @@ public:
     }
   }
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     string res;
     MultiKeyCausalValue value;
 
@@ -725,7 +725,7 @@ public:
     return res;
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     MultiKeyCausalValue input_value;
     input_value.ParseFromString(serialized);
 
@@ -855,7 +855,7 @@ public:
       ebs_root_ += "/";
   }
 
-  string get(const Key &key, AnnaError &error) override {
+  string get(const Key &key, AnnaError &error, unsigned mwtype = 0) override {
     string res;
     PriorityValue value;
 
@@ -874,7 +874,7 @@ public:
     return res;
   }
 
-  unsigned put(const Key &key, const string &serialized) override {
+  unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) override {
     PriorityValue input_value;
     input_value.ParseFromString(serialized);
 
@@ -916,23 +916,25 @@ using SerializerMap =
 struct PendingRequest {
   PendingRequest() {}
   PendingRequest(RequestType type, LatticeType lattice_type, string payload,
-                 Address addr, string response_id)
+                 Address addr, string response_id, unsigned mwtype_)
       : type_(type), lattice_type_(std::move(lattice_type)),
-        payload_(std::move(payload)), addr_(addr), response_id_(response_id) {}
+        payload_(std::move(payload)), addr_(addr), response_id_(response_id), mwtype(mwtype_) {}
 
   RequestType type_;
   LatticeType lattice_type_;
   string payload_;
   Address addr_;
   string response_id_;
+  unsigned mwtype;
 };
 
 struct PendingGossip {
   PendingGossip() {}
-  PendingGossip(LatticeType lattice_type, string payload)
-      : lattice_type_(std::move(lattice_type)), payload_(std::move(payload)) {}
+  PendingGossip(LatticeType lattice_type, string payload, unsigned mwtype_)
+      : lattice_type_(std::move(lattice_type)), payload_(std::move(payload)), mwtype(mwtype_) {}
   LatticeType lattice_type_;
   string payload_;
+  unsigned mwtype;
 };
 
 #endif // INCLUDE_KVS_SERVER_UTILS_HPP_

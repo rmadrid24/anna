@@ -48,18 +48,20 @@ extern unsigned kDefaultLocalReplication;
 extern unsigned kMinimumReplicaNumber;
 
 inline void prepare_get_tuple(KeyRequest &req, Key key,
-                              LatticeType lattice_type) {
+                              LatticeType lattice_type, unsigned mwtype = 0) {
   KeyTuple *tp = req.add_tuples();
   tp->set_key(std::move(key));
   tp->set_lattice_type(std::move(lattice_type));
+  tp->set_mwtype(mwtype);
 }
 
 inline void prepare_put_tuple(KeyRequest &req, Key key,
-                              LatticeType lattice_type, string payload) {
+                              LatticeType lattice_type, string payload, unsigned mwtype = 0) {
   KeyTuple *tp = req.add_tuples();
   tp->set_key(std::move(key));
   tp->set_lattice_type(std::move(lattice_type));
   tp->set_payload(std::move(payload));
+  tp->set_mwtype(mwtype);
 }
 
 #endif // KVS_INCLUDE_KVS_COMMON_HPP_

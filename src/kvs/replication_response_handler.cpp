@@ -112,7 +112,7 @@ void replication_response_handler(
                   LatticeType_Name(stored_key_map[key].type_));
             } else {
               process_put(key, request.lattice_type_, request.payload_,
-                          serializers[request.lattice_type_], stored_key_map);
+                          serializers[request.lattice_type_], stored_key_map, request.mwtype);
               key_access_tracker[key].insert(now);
 
               access_count += 1;
@@ -139,7 +139,7 @@ void replication_response_handler(
               tp->set_error(AnnaError::KEY_DNE);
             } else {
               auto res =
-                  process_get(key, serializers[stored_key_map[key].type_]);
+                  process_get(key, serializers[stored_key_map[key].type_], request.mwtype);
               tp->set_lattice_type(stored_key_map[key].type_);
               tp->set_payload(res.first);
               tp->set_error(res.second);
@@ -157,7 +157,7 @@ void replication_response_handler(
                   LatticeType_Name(stored_key_map[key].type_));
             } else {
               process_put(key, request.lattice_type_, request.payload_,
-                          serializers[request.lattice_type_], stored_key_map);
+                          serializers[request.lattice_type_], stored_key_map, request.mwtype);
               tp->set_lattice_type(request.lattice_type_);
               local_changeset.insert(key);
             }
@@ -196,7 +196,7 @@ void replication_response_handler(
                        LatticeType_Name(stored_key_map[key].type_));
           } else {
             process_put(key, gossip.lattice_type_, gossip.payload_,
-                        serializers[gossip.lattice_type_], stored_key_map);
+                        serializers[gossip.lattice_type_], stored_key_map, gossip.mwtype);
           }
         }
       } else {
@@ -209,7 +209,7 @@ void replication_response_handler(
 
           for (const PendingGossip &gossip : pending_gossip[key]) {
             prepare_put_tuple(gossip_map[thread.gossip_connect_address()], key,
-                              gossip.lattice_type_, gossip.payload_);
+                              gossip.lattice_type_, gossip.payload_, gossip.mwtype);
           }
         }
 

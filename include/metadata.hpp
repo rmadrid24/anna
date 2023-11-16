@@ -34,6 +34,7 @@ struct KeyReplication {
 struct KeyProperty {
   unsigned size_;
   LatticeType type_;
+  unsigned mwtype_;
 };
 
 inline bool operator==(const KeyReplication &lhs, const KeyReplication &rhs) {
