@@ -61,6 +61,9 @@ std::pair<string, AnnaError> process_get(const Key &key,
 void process_put(const Key &key, LatticeType lattice_type,
                  const string &payload, Serializer *serializer,
                  map<Key, KeyProperty> &stored_key_map, unsigned mwtype = 0) {
+  if (mwtype == 0) {
+    std::cout << "function " << __PRETTY_FUNCTION__ << " called no mwtype" << std::endl;
+  }
   stored_key_map[key].size_ = serializer->put(key, payload, mwtype);
   stored_key_map[key].type_ = std::move(lattice_type);
   stored_key_map[key].mwtype_ = std::move(mwtype);

@@ -301,7 +301,7 @@ public:
     } else if (mwtype == 2) {
       mode = nvmmiddleware::Mode::BATCH;
     } else {
-      std::cerr << "Wrong middleware type." << std::endl;
+      std::cerr << "GET: Wrong middleware type." << __PRETTY_FUNCTION__ << std::endl;
       error = AnnaError::WRONG_MWTYPE;
       return res;
     }
@@ -339,12 +339,11 @@ public:
     } else if (mwtype == 2) {
       mode = nvmmiddleware::Mode::BATCH;
     } else {
-      std::cerr << "Wrong middleware type." << std::endl;
+      std::cerr << "PUT: Wrong middleware type." << __PRETTY_FUNCTION__ << std::endl;
       return -1;
     }
 
     std::string val;
-    std::cout << mw << std::endl;
     auto ft_orig = mw->enqueue_get(&key, &val, mode);
     auto status = ft_orig.get();
     if (status == nvmmiddleware::Status::OK) {

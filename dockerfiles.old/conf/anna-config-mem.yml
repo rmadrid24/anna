@@ -1,31 +1,33 @@
+monitoring:
+  mgmt_ip: 192.168.1.10
+  ip: 192.168.1.10
+routing:
+  monitoring:
+      - 192.168.1.10
+  ip: 192.168.1.10
 server:
   monitoring:
       - 192.168.1.10
   routing: 
       - 192.168.1.10
   seed_ip: 192.168.1.10
-  public_ip: 192.168.1.11
-  private_ip: 192.168.1.11
+  public_ip: 192.168.1.10
+  private_ip: 192.168.1.10
   mgmt_ip: "NULL"
 policy:
   elasticity: false
   selective-rep: false
   tiering: false
-ebs: /data
-middleware:
-  path: "/pmem"
-  interactive: 15
-  batch: 10
 capacities: # in GB
   memory-cap: 1
   ebs-cap: 80
 threads:
-  memory: 1
-  ebs: 20
+  memory: 10
+  ebs: 10
   routing: 4
   benchmark: 1
 replication:
-  memory: 0
+  memory: 1
   ebs: 1
-  minimum: 0
+  minimum: 1
   local: 1

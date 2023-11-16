@@ -1,0 +1,20 @@
+monitoring:
+  mgmt_ip: 192.168.1.13
+  ip: 192.168.1.13
+policy:
+  elasticity: false
+  selective-rep: false
+  tiering: false
+capacities: # in GB
+  memory-cap: 1
+  ebs-cap: 80
+threads:
+  memory: 1
+  ebs: 1
+  routing: 4
+  benchmark: 1
+replication:
+  memory: 1
+  ebs: 1
+  minimum: 1
+  local: 1

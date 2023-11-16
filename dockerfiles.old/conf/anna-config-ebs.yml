@@ -12,20 +12,16 @@ policy:
   selective-rep: false
   tiering: false
 ebs: /data
-middleware:
-  path: "/pmem"
-  interactive: 15
-  batch: 10
 capacities: # in GB
   memory-cap: 1
   ebs-cap: 80
 threads:
-  memory: 1
-  ebs: 20
+  memory: 10
+  ebs: 10
   routing: 4
   benchmark: 1
 replication:
-  memory: 0
+  memory: 1
   ebs: 1
-  minimum: 0
+  minimum: 1
   local: 1

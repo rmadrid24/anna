@@ -34,6 +34,9 @@ enum Operation {
 ZmqUtil zmq_util;
 ZmqUtilInterface *kZmqUtil = &zmq_util;
 
+YAML::Node config = YAML::LoadFile("conf/anna-config.yml");
+unsigned mwtype = config["middleware"]["type"].as<unsigned>();
+
 double get_base(unsigned N, double skew) {
   double base = 0;
   for (unsigned k = 1; k <= N; k++) {
@@ -87,14 +90,13 @@ int sample(int n, unsigned &seed, double base,
 }
 
 string generate_key(unsigned n) {
-  return string(8 - std::to_string(n).length(), '0') + std::to_string(n);
+  return std::to_string(mwtype) + string(8 - std::to_string(n).length(), '0') + std::to_string(n);
 }
 
 void run(const unsigned &thread_id,
          const vector<UserRoutingThread> &routing_threads,
          const vector<MonitoringThread> &monitoring_threads,
-         const Address &ip,
-	 const unsigned mwtype = 0) {
+         const Address &ip) {
   KvsClient client(routing_threads, ip, thread_id, 10000, mwtype);
   string log_file = "log_" + std::to_string(thread_id) + ".txt";
   string logger_name = "benchmark_log_" + std::to_string(thread_id);
@@ -411,7 +413,6 @@ int main(int argc, char *argv[]) {
   kDefaultLocalReplication = conf["replication"]["local"].as<unsigned>();
 
   vector<std::thread> benchmark_threads;
-  unsigned mwtype = conf["middleware"]["type"].as<unsigned>();
 
   if (YAML::Node elb = user["routing-elb"]) {
     routing_ips.push_back(elb.as<string>());
@@ -433,7 +434,7 @@ int main(int argc, char *argv[]) {
   // NOTE: We create a new client for every single thread.
   for (unsigned thread_id = 1; thread_id < kBenchmarkThreadNum; thread_id++) {
     benchmark_threads.push_back(
-        std::thread(run, thread_id, routing_threads, monitoring_threads, ip, mwtype));
+        std::thread(run, thread_id, routing_threads, monitoring_threads, ip));
   }
 
   run(0, routing_threads, monitoring_threads, ip);
