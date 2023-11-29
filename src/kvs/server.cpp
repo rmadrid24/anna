@@ -15,6 +15,7 @@
 #include "kvs/kvs_handlers.hpp"
 #include "yaml-cpp/yaml.h"
 #include "NvmMiddleware.h"
+#include <sched.h>
 
 // define server report threshold (in second)
 const unsigned kServerReportThreshold = 15;
@@ -775,11 +776,20 @@ int main(int argc, char *argv[]) {
   YAML::Node monitoring = server["monitoring"];
   YAML::Node routing = server["routing"];
 
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
   if (kSelfTier == Tier::DISK) {
     std::string mw_db = conf["middleware"]["path"].as<string>();
     unsigned interactive_threads = conf["middleware"]["interactive"].as<unsigned>();
     unsigned batch_threads = conf["middleware"]["batch"].as<unsigned>();
     start_middleware(mw_db, interactive_threads, batch_threads);
+    for (int i = 24; i < 48; i++) {
+      CPU_SET(i, &cpuset);
+    };
+  } else {
+    for (int i = 20; i < 24; i++) {
+      CPU_SET(i, &cpuset);
+    };
   }
 
   for (const YAML::Node &address : routing) {
@@ -805,13 +815,17 @@ int main(int argc, char *argv[]) {
     worker_threads.push_back(std::thread(run, thread_id, public_ip, private_ip,
                                          seed_ip, routing_ips, monitoring_ips,
                                          mgmt_ip));
+    pthread_setaffinity_np(worker_threads[thread_id-1].native_handle(), sizeof(cpu_set_t), &cpuset);
   }
 
-  run(0, public_ip, private_ip, seed_ip, routing_ips, monitoring_ips, mgmt_ip);
+  std::thread main_thread(run, 0, public_ip, private_ip, seed_ip, routing_ips, monitoring_ips, mgmt_ip);
+  pthread_setaffinity_np(main_thread.native_handle(), sizeof(cpu_set_t), &cpuset);
+  main_thread.join();
+  //run(0, public_ip, private_ip, seed_ip, routing_ips, monitoring_ips, mgmt_ip);
 
   // join on all threads to make sure they finish before exiting
   for (unsigned tid = 1; tid < kThreadNum; tid++) {
-    worker_threads[tid].join();
+    worker_threads[tid-1].join();
   }
 
   return 0;

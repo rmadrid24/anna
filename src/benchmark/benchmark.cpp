@@ -20,6 +20,7 @@
 #include "yaml-cpp/yaml.h"
 #include "discrete_generator.h"
 #include <hdr/hdr_histogram.h>
+#include <sched.h>
 
 unsigned kBenchmarkThreadNum;
 unsigned kRoutingThreadCount;
@@ -431,11 +432,26 @@ int main(int argc, char *argv[]) {
     }
   }
 
+
   // NOTE: We create a new client for every single thread.
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  for (int i = 72; i < 96; i++) {
+    CPU_SET(i, &cpuset);
+  };
   for (unsigned thread_id = 1; thread_id < kBenchmarkThreadNum; thread_id++) {
     benchmark_threads.push_back(
         std::thread(run, thread_id, routing_threads, monitoring_threads, ip));
+    pthread_setaffinity_np(benchmark_threads[thread_id-1].native_handle(), sizeof(cpu_set_t), &cpuset);
   }
 
-  run(0, routing_threads, monitoring_threads, ip);
+  std::thread main_thread(run, 0, routing_threads, monitoring_threads, ip);
+  pthread_setaffinity_np(main_thread.native_handle(), sizeof(cpu_set_t), &cpuset);
+  main_thread.join();
+  //run(0, routing_threads, monitoring_threads, ip);
+  
+  // join on all threads to make sure they finish before exiting
+  for (unsigned tid = 1; tid < kBenchmarkThreadNum; tid++) {
+    benchmark_threads[tid-1].join();
+  }
 }

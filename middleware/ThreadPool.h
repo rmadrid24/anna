@@ -76,10 +76,10 @@ inline ThreadPool::ThreadPool(std::string name, size_t threads)
 {
 	num_threads_ = threads;
 	CPU_ZERO(&cpuset);
-	for (int j = 0; j < 24; j++) {
+	for (int j = 0; j < 20; j++) {
 		CPU_SET(j, &cpuset);
 	};
-	for (int k = 48; k < 72; k++) {
+	for (int k = 48; k < 68; k++) {
 		CPU_SET(k, &cpuset);
 	};
 	for(size_t i = 0; i < threads; i++) {
