@@ -14,14 +14,14 @@ policy:
 ebs: /data
 middleware:
   path: "/pmem"
-  interactive: 10
-  batch: 10
+  interactive: 1
+  batch: 1
 capacities: # in GB
   memory-cap: 1
   ebs-cap: 80
 threads:
   memory: 1
-  ebs: 40
+  ebs: 50
   routing: 4
   benchmark: 1
 replication:

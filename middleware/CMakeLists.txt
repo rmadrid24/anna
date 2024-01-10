@@ -7,8 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package (Threads REQUIRED)
 find_package(OpenMP REQUIRED)
-#find_package(PkgConfig QUIET REQUIRED)
+find_package(PkgConfig QUIET REQUIRED)
 find_package(TBB REQUIRED REQUIRED)
+pkg_check_modules(LIBPMEM REQUIRED libpmem)
 
 #if(PKG_CONFIG_FOUND)
 #  pkg_check_modules(LIBPMEMKV REQUIRED libpmemkv)
@@ -24,5 +25,5 @@ file(
 
 add_library(middleware STATIC ${SRC_FILES})
 #target_link_libraries(middleware ${LIBPMEMKV_LIBRARIES} hdr_histogram TBB::tbb)
-target_link_libraries(middleware hdr_histogram TBB::tbb)
+target_link_libraries(middleware hdr_histogram ${LIBPMEM_LIBRARIES} TBB::tbb)
 ADD_DEPENDENCIES(middleware hdr_histogram)

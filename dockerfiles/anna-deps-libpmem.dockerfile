@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 #FROM hydroproject/base:latest
-FROM anna-kvs-deps-libpmem
+FROM anna-kvs-deps
 
 #MAINTAINER Vikram Sreekanti <vsreekanti@gmail..com> version: 0.1
 
@@ -21,27 +21,11 @@ USER root
 
 # Check out to the appropriate branch on the appropriate fork of the repository
 # and build Anna.
-RUN echo "/usr/local/gcc-10/lib" >> /etc/ld.so.conf.d/libc.conf
-RUN echo "/usr/local/gcc-10/lib64" >> /etc/ld.so.conf.d/libc.conf && ldconfig
-WORKDIR $HYDRO_HOME
-RUN rm -rf anna/
-RUN mkdir anna
-WORKDIR $HYDRO_HOME/anna
-COPY client/ client/
-COPY common/ common/
-COPY conf/ conf/
-COPY include/ include/
-COPY scripts/ scripts/
-COPY src/ src/
-COPY tests/ tests/
-COPY middleware/ middleware/
-COPY HdrHistogram_c/ HdrHistogram_c/
-COPY CMakeLists.txt CMakeLists.txt
-#COPY ../  anna/
-RUN ls
-RUN bash scripts/build.sh -g -j4 -bRelease
-#RUN apt install -y iproute2
-WORKDIR /
-
-COPY dockerfiles/start-anna-local.sh /start-anna.sh
-CMD bash start-anna.sh $SERVER_TYPE
+RUN apt install -y asciidoctor glib-2.0 libfabric-dev pandoc libkmod-dev libudev-dev uuid-dev libjson-c-dev libkeyutils-dev bash-completion bc systemd
+RUN git clone https://github.com/pmem/ndctl.git && cd ndctl && git checkout origin/ndctl-70.y \
+    && ./autogen.sh \
+    && ./configure CFLAGS='-g -O2' --prefix=/usr --sysconfdir=/etc --libdir=/usr/lib64 \
+    && make && make install && cd ../
+RUN git clone https://github.com/pmem/pmdk && cd pmdk && git checkout tags/1.10.1 \
+    && export PKG_CONFIG_PATH=/usr/lib64/pkgconfig \
+    && make && make install && cd ..

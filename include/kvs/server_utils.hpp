@@ -293,6 +293,7 @@ public:
 
   string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
     string res;
+    //std::cout << "Starting get from ANNA\n";
     LWWValue value;
     std::string input;
     nvmmiddleware::Mode mode;
@@ -328,6 +329,7 @@ public:
 
   unsigned put(const Key &key, const string &serialized, unsigned mwtype = 0) {
     LWWValue input_value;
+    //std::cout << "Starting put from ANNA\n";
     input_value.ParseFromString(serialized);
 
     LWWValue original_value;
@@ -347,6 +349,7 @@ public:
     auto ft_orig = mw->enqueue_get(&key, &val, mode);
     auto status = ft_orig.get();
     if (status == nvmmiddleware::Status::OK) {
+      //std::cout << "Found key\n";
       original_value.ParseFromString(val);
       if (input_value.timestamp() >= original_value.timestamp()) {
         input_value.SerializeToString(&output);
@@ -358,6 +361,7 @@ public:
       	}
       }
     } else if (status == nvmmiddleware::Status::KEY_NOT_FOUND) {
+      //std::cout << "Key does not exists\n";
       input_value.SerializeToString(&output);
       auto ft = mw->enqueue_put(&key, &output, mode);
       status = ft.get();
@@ -366,7 +370,7 @@ public:
       	return 0;
       }
     } else {
-      std::cerr << "Error putting key" << std::endl;
+      std::cerr << "Error putting key" << key <<std::endl;
       return 0;
     }
     return 1;

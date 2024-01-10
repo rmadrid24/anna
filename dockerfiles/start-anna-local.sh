@@ -70,5 +70,5 @@ elif [ "$1" = "mem" ]; then
   ./build/target/kvs/anna-kvs
 elif [ "$1" = "ebs" ]; then
   export SERVER_TYPE="ebs"
-  ./build/target/kvs/anna-kvs
+  PMEM_IS_PMEM_FORCE=1 ./build/target/kvs/anna-kvs
 fi

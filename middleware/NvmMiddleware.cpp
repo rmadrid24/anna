@@ -101,15 +101,30 @@ nvmmiddleware::Status nvmmiddleware::NvmMiddleware::put(const string *k, const s
 {
     nvmmiddleware::Status status;
     string fname = path + "/" + *k;
+    //std::cout << "Starting middleware put\n";
     auto start_time = chrono::system_clock::now();
-    std::fstream file(fname, std::ios::out | std::ios::trunc | std::ios::binary);
+    /*std::fstream file(fname, std::ios::out | std::ios::trunc | std::ios::binary);
     if (file.is_open()) {
       file << *value;
       file.close();
       status = nvmmiddleware::Status::OK;
     } else {
       status = nvmmiddleware::Status::ERROR;
+    }*/
+    int is_pmem;
+    size_t mapped_len;
+    size_t file_size = strlen(value->c_str());
+    char *pmem_addr = (char *)pmem_map_file(fname.c_str(), file_size, PMEM_FILE_CREATE, 0666, &mapped_len, &is_pmem);
+
+    if (pmem_addr == NULL) {
+	std::cout << "pmem_map_file error\n";
+        return nvmmiddleware::Status::ERROR;
     }
+
+    pmem_memcpy_persist(pmem_addr, value->c_str(), file_size);
+    pmem_unmap(pmem_addr, mapped_len);
+    status = nvmmiddleware::Status::OK;
+
     auto end_time = chrono::system_clock::now();
     avg_put_pmemkv += calculate_time_ms(start_time, end_time);
     return status;
@@ -120,21 +135,49 @@ nvmmiddleware::Status nvmmiddleware::NvmMiddleware::get(const string *k, string 
 {
     nvmmiddleware::Status status;
     string fname = path + "/" + *k;
+    //std::cout << "Starting middleware get\n";
     auto start_time = chrono::system_clock::now();
-    std::fstream file(fname, std::ios::in | std::ios::binary);
+    /*std::fstream file(fname, std::ios::in | std::ios::binary);
     if (!file) {
       status = nvmmiddleware::Status::KEY_NOT_FOUND;
     } else {
       std::string fileContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
       reply = new std::string(fileContent);
       status = nvmmiddleware::Status::OK;
+    }*/
+
+    std::ifstream f (fname.c_str());
+    if (!f.good()) {
+    	return nvmmiddleware::Status::KEY_NOT_FOUND;
     }
+
+    struct stat st;
+    if(stat(fname.c_str(), &st) != 0) {
+	std::cout << "Error getting file size\n";
+        return nvmmiddleware::Status::ERROR;
+    }
+
+    int is_pmem;
+    size_t mapped_len;
+    size_t file_size = st.st_size;
+    char *pmem_addr = (char *)pmem_map_file(fname.c_str(), file_size, PMEM_FILE_CREATE, 0666, &mapped_len, &is_pmem);
+
+    //std::cout << "size " << mapped_len << std::endl; 
+    if (pmem_addr == NULL) {
+        std::cout << "pmem_map_file error " << pmem_errormsg() << std::endl;
+	return nvmmiddleware::Status::ERROR;
+    }
+
+    reply = new std::string(pmem_addr);
+    pmem_unmap(pmem_addr, mapped_len);
+    status = nvmmiddleware::Status::OK;
+
     auto end_time = chrono::system_clock::now();
     avg_get_pmemkv += calculate_time_ms(start_time, end_time);
     return status;
 }
 
-future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_put(const string *k, const string *value, nvmmiddleware::Mode mode)
+/*future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_put(const string *k, const string *value, nvmmiddleware::Mode mode)
 {
     future<nvmmiddleware::Status> ft;
     register_call(mode);
@@ -174,14 +217,14 @@ future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_put(const st
     //total_writes += 1;
     //cout << "Write: key " << *k << " and value " << *value << endl;
     return ft;
-}
+}*/
 
-/*future<pmem::kv::status> nvmmiddleware::NvmMiddleware::enqueue_put(const string *k, const string *value, nvmmiddleware::Mode mode)
+future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_put(const string *k, const string *value, nvmmiddleware::Mode mode)
 {
-	future<pmem::kv::status> ft;
+	future<nvmmiddleware::Status> ft;
 	register_call(mode);
-	auto put_task = make_shared<std::packaged_task<pmem::kv::status()>>(
-			std::bind(&nvmmiddleware::NvmMiddleware::pmemkv_put, this, kv_, k, value)
+	auto put_task = make_shared<std::packaged_task<nvmmiddleware::Status()>>(
+			std::bind(&nvmmiddleware::NvmMiddleware::put, this, k, value)
 			);
 	auto timer = make_shared<Timer<std::chrono::microseconds>>();
 	std::function<void()> task = [put_task, timer, mode, this, k, value]() {
@@ -213,12 +256,12 @@ future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_put(const st
 	return ft;
 }
 
-future<pmem::kv::status> nvmmiddleware::NvmMiddleware::enqueue_get(const string *k, string *reply, nvmmiddleware::Mode mode)
+future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_get(const string *k, string *reply, nvmmiddleware::Mode mode)
 {
-	future<pmem::kv::status> ft;
+	future<nvmmiddleware::Status> ft;
 	register_call(mode);
-	auto get_task = make_shared<std::packaged_task<pmem::kv::status()>>(
-			std::bind(&nvmmiddleware::NvmMiddleware::pmemkv_get, this, kv_, k, reply)
+	auto get_task = make_shared<std::packaged_task<nvmmiddleware::Status()>>(
+			std::bind(&nvmmiddleware::NvmMiddleware::get, this, k, reply)
 			);
 	auto timer = make_shared<Timer<std::chrono::microseconds>>();
 	std::function<void()> task = [get_task, timer, mode, this, k, reply]() {
@@ -245,7 +288,7 @@ future<pmem::kv::status> nvmmiddleware::NvmMiddleware::enqueue_get(const string 
 	}
 	task();
 	return ft;
-}*/
+}
 
 void nvmmiddleware::NvmMiddleware::register_call(nvmmiddleware::Mode mode) {
 	if (mode == nvmmiddleware::Mode::INTERACTIVE) {
@@ -255,7 +298,7 @@ void nvmmiddleware::NvmMiddleware::register_call(nvmmiddleware::Mode mode) {
 	}
 }
 
-future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_get(const string *k, string *reply, nvmmiddleware::Mode mode)
+/*future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_get(const string *k, string *reply, nvmmiddleware::Mode mode)
 {
     future<nvmmiddleware::Status> ft;
     register_call(mode);
@@ -292,7 +335,7 @@ future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_get(const st
     //total_reads += 1;
     //cout << "GET: key " << *k << endl;
     return ft;
-}
+}*/
 
 void nvmmiddleware::NvmMiddleware::incrementInteractiveThreads()
 {

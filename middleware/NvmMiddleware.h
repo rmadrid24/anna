@@ -14,6 +14,14 @@
 #include <math.h>
 #include <fstream>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <libpmem.h>
+#include <cstring>
+
 #define REWARD_SAMPLE 200
 
 template <uint16_t N, class input_t = uint32_t, class sum_t = uint32_t>
@@ -122,7 +130,7 @@ namespace nvmmiddleware
 	std::future<Status> enqueue_get(const std::string *k, std::string *reply, Mode mode);
 	//Status direct_put(const std::string *k, const std::string *value);
 	//Status direct_get(const std::string *k, std::string *reply);
-	void close();
+	void close_mw();
         void incrementInteractiveThreads();
 	void decreaseInteractiveThreads();
 	void performNoAction();
