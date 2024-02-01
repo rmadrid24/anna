@@ -14,6 +14,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+export PKG_CONFIG_PATH=/usr/lib64/pkgconfig
+
 args=( -j -b -t )
 containsElement() {
   local e match="$1"

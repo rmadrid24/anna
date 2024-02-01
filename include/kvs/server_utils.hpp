@@ -210,7 +210,7 @@ public:
     if (ebs_root_.back() != '/') {
       ebs_root_ += "/";
     }
-    std::cout << "root " << ebs_root_ << std::endl;
+    //std::cout << "root " << ebs_root_ << std::endl;
   }
 
   string get(const Key &key, AnnaError &error, unsigned mwtype = 0) {
@@ -307,7 +307,7 @@ public:
       return res;
     }
 
-    auto ft = mw->enqueue_get(&key, &input, mode);
+    auto ft = mw->mw_get(&key, &input, mode);
     auto status = ft.get();
     if(status == nvmmiddleware::Status::OK){
       if (!value.ParseFromString(input)) {
@@ -346,14 +346,14 @@ public:
     }
 
     std::string val;
-    auto ft_orig = mw->enqueue_get(&key, &val, mode);
+    /*auto ft_orig = mw->mw_get(&key, &val, mode);
     auto status = ft_orig.get();
     if (status == nvmmiddleware::Status::OK) {
       //std::cout << "Found key\n";
       original_value.ParseFromString(val);
       if (input_value.timestamp() >= original_value.timestamp()) {
         input_value.SerializeToString(&output);
-	auto ft = mw->enqueue_put(&key, &output, mode);
+	auto ft = mw->mw_put(&key, &output, mode);
 	status = ft.get();
 	if(status != nvmmiddleware::Status::OK){
     	  std::cerr << "Failed to write payload" << std::endl;
@@ -363,7 +363,7 @@ public:
     } else if (status == nvmmiddleware::Status::KEY_NOT_FOUND) {
       //std::cout << "Key does not exists\n";
       input_value.SerializeToString(&output);
-      auto ft = mw->enqueue_put(&key, &output, mode);
+      auto ft = mw->mw_put(&key, &output, mode);
       status = ft.get();
       if(status != nvmmiddleware::Status::OK){
         std::cerr << "Failed to write payload" << std::endl;
@@ -372,6 +372,13 @@ public:
     } else {
       std::cerr << "Error putting key" << key <<std::endl;
       return 0;
+    }*/
+    input_value.SerializeToString(&output);
+    auto ft = mw->mw_put(&key, &output, mode);
+    auto status = ft.get();
+    if(status != nvmmiddleware::Status::OK){
+        std::cerr << "Failed to write payload" << std::endl;
+        return 0;
     }
     return 1;
   }

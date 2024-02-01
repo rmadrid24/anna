@@ -16,6 +16,8 @@
 #include "yaml-cpp/yaml.h"
 #include "NvmMiddleware.h"
 #include <sched.h>
+#include <csignal>
+#include <cstdlib>
 
 // define server report threshold (in second)
 const unsigned kServerReportThreshold = 15;
@@ -52,6 +54,12 @@ void start_middleware(std::string db, unsigned interactive, unsigned batch) {
   //int interactive = rand() % 16 + 1;
   //int batch = rand() % 16 + 1;
   mw_ = new nvmmiddleware::NvmMiddleware(db, interactive, batch);
+}
+
+void signalHandler( int signum ) {
+    std::cout << "Interrupt signal (" << signum << ") received.\n";
+    delete mw_;
+    exit(signum);
 }
 
 void run(unsigned thread_id, Address public_ip, Address private_ip,
@@ -726,6 +734,7 @@ int main(int argc, char *argv[]) {
     std::cerr << "Usage: " << argv[0] << std::endl;
     return 1;
   }
+  std::signal(SIGTERM, signalHandler);
 
   // populate metadata
   char *stype = getenv("SERVER_TYPE");

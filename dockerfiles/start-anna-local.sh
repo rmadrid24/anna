@@ -17,6 +17,39 @@
 cd $HYDRO_HOME/anna
 
 echo "Starting Anna KVS"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+
+forward_signals() {
+    echo "Forwarding signal to child process"
+    if [[ -n "$KPID" ]]; then
+	echo "Sending signal to kvs"
+        kill -s "$1" "$KPID"
+	wait "$KPID"
+    fi
+    
+    if [[ -n "$BPID" ]]; then
+        kill -s "$1" "$BPID"
+        wait "$BPID"
+    fi
+
+    if [[ -n "$MPID" ]]; then
+        kill -s "$1" "$MPID"
+        wait "$MPID"
+    fi
+
+    if [[ -n "$RPID" ]]; then
+        kill -s "$1" "$RPID"
+        wait "$RPID"
+    fi
+#    kill -s "$1" "$child_pid"
+#    wait "$child_pid"
+    exit $?
+}
+
+# Trap signals and forward them to the child process
+trap 'forward_signals SIGTERM' SIGTERM
+trap 'forward_signals SIGINT' SIGINT
+
 
 # Tailor the config file to have process specific information.
 if [ "$1" = "mn" ]; then
@@ -46,7 +79,8 @@ elif [ "$1" = "b" ]; then
 #  echo -e "    routing:" >> conf/anna-config.yml
 #  echo -e "$LST" >> conf/anna-config.yml
 
-  ./build/target/benchmark/anna-bench
+  ./build/target/benchmark/anna-bench & BPID=$!
+  wait "$BPID"
 elif [ "$1" = "mem" ]; then
 #  echo -e "server:" >> conf/anna-config.yml
 #  echo -e "    seed_ip: $SEED_IP" >> conf/anna-config.yml
@@ -67,8 +101,13 @@ elif [ "$1" = "mem" ]; then
   ./build/target/kvs/anna-route & RPID=$!
   echo "Start kvs"
   export SERVER_TYPE="memory"
-  ./build/target/kvs/anna-kvs
+  ./build/target/kvs/anna-kvs & KPID=$!
+
+  wait "$MPID"
+  wait "$RPID"
+  wait "$KPID"
 elif [ "$1" = "ebs" ]; then
   export SERVER_TYPE="ebs"
-  PMEM_IS_PMEM_FORCE=1 ./build/target/kvs/anna-kvs
+  PMEM_IS_PMEM_FORCE=1 ./build/target/kvs/anna-kvs & KPID=$!
+  wait "$KPID"
 fi

@@ -17,7 +17,7 @@ capacities: # in GB
   ebs-cap: 80
 threads:
   memory: 1
-  ebs: 50
+  ebs: 20
   routing: 4
   benchmark: 40
 replication:

@@ -201,7 +201,7 @@ inline ThreadPool::~ThreadPool()
     for(std::thread &worker: workers)
 	    worker.join();
 
-    //print_stats();
+    print_stats();
 }
 
 inline long ThreadPool::getQueueSize() {

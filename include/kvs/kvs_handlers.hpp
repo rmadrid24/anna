@@ -101,11 +101,11 @@ void send_gossip(AddressKeysetMap &addr_keyset_map, SocketCache &pushers,
                  map<Key, KeyProperty> &stored_key_map);
 
 std::pair<string, AnnaError> process_get(const Key &key,
-                                         Serializer *serializer, unsigned mwtype);
+                                         Serializer *serializer, unsigned int mwtype);
 
 void process_put(const Key &key, LatticeType lattice_type,
                  const string &payload, Serializer *serializer,
-                 map<Key, KeyProperty> &stored_key_map, unsigned mwtype);
+                 map<Key, KeyProperty> &stored_key_map, unsigned int mwtype);
 
 bool is_primary_replica(const Key &key,
                         map<Key, KeyReplication> &key_replication_map,

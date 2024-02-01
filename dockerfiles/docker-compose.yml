@@ -1,7 +1,7 @@
 version: "3"
 services:
   mem:
-    image: anna-kvs-pmem
+    image: anna-kvs-pmem-mw
     command: bash start-anna.sh mem
     volumes:
       - ./conf/anna-config-mem.yml:/hydro/anna/conf/anna-config.yml
@@ -13,7 +13,7 @@ services:
         soft: -1
         hard: -1
   ebs:
-    image: anna-kvs-pmem
+    image: anna-kvs-pmem-mw
     command: bash start-anna.sh ebs
     volumes:
       - ./conf/anna-config-ebs.yml:/hydro/anna/conf/anna-config.yml
@@ -25,7 +25,7 @@ services:
     depends_on:
       - mem
   bench:
-    image: anna-kvs-pmem
+    image: anna-kvs-pmem-mw
     command: bash start-anna.sh b
     volumes:
       - ./conf/anna-config-bench.yml:/hydro/anna/conf/anna-config.yml
@@ -35,7 +35,7 @@ services:
     depends_on:
       - mem
   bench-lat:
-    image: anna-kvs-pmem
+    image: anna-kvs-pmem-mw
     command: bash start-anna.sh b
     volumes:
       - ./conf/anna-config-bench-lat.yml:/hydro/anna/conf/anna-config.yml

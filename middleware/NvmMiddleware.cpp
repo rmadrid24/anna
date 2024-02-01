@@ -21,11 +21,18 @@ long calculate_time_ms(chrono::time_point<chrono::system_clock> start_time, chro
     return chrono::duration_cast<chrono::microseconds>(end_time - start_time).count();
 }
 
-nvmmiddleware::NvmMiddleware::NvmMiddleware(std::string dbPath, int interactiveThreads, int batchThreads) : path(dbPath)
+nvmmiddleware::NvmMiddleware::NvmMiddleware(std::string dbPath, int interactiveThreads, int batchThreads) : path(dbPath),
+	interactive_threads(interactiveThreads),
+	batch_threads(batchThreads)
 {
     cout << "Starting middleware with " << interactiveThreads << " interactive threads and " << batchThreads << " batch threads\n";
-    interactive_pool_ = new ThreadPool("interactive", interactiveThreads);
-    batch_pool_ = new ThreadPool("batch", batchThreads);
+    start_db(dbPath);
+    if (interactiveThreads > 0) {
+        interactive_pool_ = new ThreadPool("interactive", interactiveThreads);
+    }
+    if (batchThreads > 0) {
+        batch_pool_ = new ThreadPool("batch", batchThreads);
+    }
     init_hdr();
     int_sizes.set_capacity(200);
     batch_sizes.set_capacity(200);
@@ -97,92 +104,59 @@ void nvmmiddleware::NvmMiddleware::init_hdr() {
                 );
 }
 
-nvmmiddleware::Status nvmmiddleware::NvmMiddleware::put(const string *k, const string *value)
+void nvmmiddleware::NvmMiddleware::start_db(std::string dbPath)
 {
-    nvmmiddleware::Status status;
-    string fname = path + "/" + *k;
-    //std::cout << "Starting middleware put\n";
+    pmem::kv::config cfg;
+    pmem::kv::status s = cfg.put_path(dbPath);
+    std::cout << "Entering start_db\n";
+    ASSERT(s == pmem::kv::status::OK);
+    LOG("Opening pmemkv database with 'cmap' engine on " + dbPath);
+    kv_ = new pmem::kv::db();
+    s = kv_->open("cmap", move(cfg));
+    ASSERT(s == pmem::kv::status::OK);
+    LOG("Successfully opened db.");
+}
+
+nvmmiddleware::Status nvmmiddleware::NvmMiddleware::put(pmem::kv::db *db, const string *k, const string *value)
+{
     auto start_time = chrono::system_clock::now();
-    /*std::fstream file(fname, std::ios::out | std::ios::trunc | std::ios::binary);
-    if (file.is_open()) {
-      file << *value;
-      file.close();
-      status = nvmmiddleware::Status::OK;
-    } else {
-      status = nvmmiddleware::Status::ERROR;
-    }*/
-    int is_pmem;
-    size_t mapped_len;
-    size_t file_size = strlen(value->c_str());
-    char *pmem_addr = (char *)pmem_map_file(fname.c_str(), file_size, PMEM_FILE_CREATE, 0666, &mapped_len, &is_pmem);
-
-    if (pmem_addr == NULL) {
-	std::cout << "pmem_map_file error\n";
-        return nvmmiddleware::Status::ERROR;
-    }
-
-    pmem_memcpy_persist(pmem_addr, value->c_str(), file_size);
-    pmem_unmap(pmem_addr, mapped_len);
-    status = nvmmiddleware::Status::OK;
-
+    pmem::kv::status s = db->put(*k, *value);
     auto end_time = chrono::system_clock::now();
     avg_put_pmemkv += calculate_time_ms(start_time, end_time);
-    return status;
-
-}
-
-nvmmiddleware::Status nvmmiddleware::NvmMiddleware::get(const string *k, string *reply)
-{
-    nvmmiddleware::Status status;
-    string fname = path + "/" + *k;
-    //std::cout << "Starting middleware get\n";
-    auto start_time = chrono::system_clock::now();
-    /*std::fstream file(fname, std::ios::in | std::ios::binary);
-    if (!file) {
-      status = nvmmiddleware::Status::KEY_NOT_FOUND;
-    } else {
-      std::string fileContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-      reply = new std::string(fileContent);
-      status = nvmmiddleware::Status::OK;
-    }*/
-
-    std::ifstream f (fname.c_str());
-    if (!f.good()) {
-    	return nvmmiddleware::Status::KEY_NOT_FOUND;
-    }
-
-    struct stat st;
-    if(stat(fname.c_str(), &st) != 0) {
-	std::cout << "Error getting file size\n";
+    switch (s) {
+      case pmem::kv::status::OK:
+        return nvmmiddleware::Status::OK;
+      case pmem::kv::status::NOT_FOUND:
+        return nvmmiddleware::Status::KEY_NOT_FOUND;
+      default:
+        std::cout << "Error put: key " << *k << " message " << s << std::endl;
         return nvmmiddleware::Status::ERROR;
     }
-
-    int is_pmem;
-    size_t mapped_len;
-    size_t file_size = st.st_size;
-    char *pmem_addr = (char *)pmem_map_file(fname.c_str(), file_size, PMEM_FILE_CREATE, 0666, &mapped_len, &is_pmem);
-
-    //std::cout << "size " << mapped_len << std::endl; 
-    if (pmem_addr == NULL) {
-        std::cout << "pmem_map_file error " << pmem_errormsg() << std::endl;
-	return nvmmiddleware::Status::ERROR;
-    }
-
-    reply = new std::string(pmem_addr);
-    pmem_unmap(pmem_addr, mapped_len);
-    status = nvmmiddleware::Status::OK;
-
-    auto end_time = chrono::system_clock::now();
-    avg_get_pmemkv += calculate_time_ms(start_time, end_time);
-    return status;
 }
 
-/*future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_put(const string *k, const string *value, nvmmiddleware::Mode mode)
+nvmmiddleware::Status nvmmiddleware::NvmMiddleware::get(pmem::kv::db *db, const string *k, string *reply)
+{
+    auto start_time = chrono::system_clock::now();
+    pmem::kv::status s = db->get(*k, reply);
+    auto end_time = chrono::system_clock::now();
+    avg_get_pmemkv += calculate_time_ms(start_time, end_time);
+    switch (s) {
+      case pmem::kv::status::OK:
+        return nvmmiddleware::Status::OK;
+      case pmem::kv::status::NOT_FOUND:
+	return nvmmiddleware::Status::KEY_NOT_FOUND;
+      default:
+	std::cout << "Error get: key " << *k << " message " << s << std::endl;
+	return nvmmiddleware::Status::ERROR;
+    }
+}
+
+future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::mw_put(const string *k, const string *value, nvmmiddleware::Mode mode)
 {
     future<nvmmiddleware::Status> ft;
     register_call(mode);
     auto put_task = make_shared<std::packaged_task<nvmmiddleware::Status()>>(
-	std::bind(&nvmmiddleware::NvmMiddleware::put, this, k, value)
+	std::bind(&nvmmiddleware::NvmMiddleware::put, this, kv_, k, value)
 	);
     //auto shared_task = make_shared<std::function<void()>>([put_task]() { (*put_task)();  });
     auto timer = make_shared<Timer<std::chrono::microseconds>>();
@@ -204,90 +178,29 @@ nvmmiddleware::Status nvmmiddleware::NvmMiddleware::get(const string *k, string 
 
     if (mode == INTERACTIVE)
     {
-    	interactive_pool_->enqueue(shared_task);
+    	if (interactive_threads == 0) {
+	    (*shared_task)();
+	} else {
+	    interactive_pool_->enqueue(shared_task);
+	}
+	//interactive_pool_->enqueue(shared_task);
 	received_interactive++;
 	total_writes_interactive += 1;
     }
     else
     {
-	batch_pool_->enqueue(shared_task);
+	if (batch_threads == 0) {
+            (*shared_task)();
+        } else {
+            batch_pool_->enqueue(shared_task);
+        }
+	//batch_pool_->enqueue(shared_task);
 	received_batch++;
 	total_writes_batch += 1;
     }
     //total_writes += 1;
     //cout << "Write: key " << *k << " and value " << *value << endl;
     return ft;
-}*/
-
-future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_put(const string *k, const string *value, nvmmiddleware::Mode mode)
-{
-	future<nvmmiddleware::Status> ft;
-	register_call(mode);
-	auto put_task = make_shared<std::packaged_task<nvmmiddleware::Status()>>(
-			std::bind(&nvmmiddleware::NvmMiddleware::put, this, k, value)
-			);
-	auto timer = make_shared<Timer<std::chrono::microseconds>>();
-	std::function<void()> task = [put_task, timer, mode, this, k, value]() {
-			(*put_task)();
-			if (mode == nvmmiddleware::Mode::INTERACTIVE) {
-			hdr_interval_recorder_record_value_atomic(&recorder, timer->End());
-			this->completed_interactive_ops++;
-			int_sizes.push(value->size());
-			} else {
-			this->completed_batch_ops++;
-			this->total_batch_ops++;
-			batch_sizes.push(value->size());
-			}
-		};
-	ft = put_task->get_future();
-	timer->Start();
-
-	if (mode == INTERACTIVE)
-	{
-		received_interactive++;
-		total_writes_interactive += 1;
-	}
-	else
-	{
-		received_batch++;
-		total_writes_batch += 1;
-	}
-	task();
-	return ft;
-}
-
-future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_get(const string *k, string *reply, nvmmiddleware::Mode mode)
-{
-	future<nvmmiddleware::Status> ft;
-	register_call(mode);
-	auto get_task = make_shared<std::packaged_task<nvmmiddleware::Status()>>(
-			std::bind(&nvmmiddleware::NvmMiddleware::get, this, k, reply)
-			);
-	auto timer = make_shared<Timer<std::chrono::microseconds>>();
-	std::function<void()> task = [get_task, timer, mode, this, k, reply]() {
-			(*get_task)();
-			if (mode == nvmmiddleware::Mode::INTERACTIVE) {
-			hdr_interval_recorder_record_value_atomic(&recorder, timer->End());
-			this->completed_interactive_ops++;
-			int_sizes.push(reply->size());
-			} else {
-			this->completed_batch_ops++;
-			this->total_batch_ops++;
-			batch_sizes.push(reply->size());
-			}
-		};
-	ft = get_task->get_future();
-	timer->Start();
-	if (mode == INTERACTIVE)
-	{
-		received_interactive++;
-	}
-	else
-	{
-		received_batch++;
-	}
-	task();
-	return ft;
 }
 
 void nvmmiddleware::NvmMiddleware::register_call(nvmmiddleware::Mode mode) {
@@ -298,12 +211,12 @@ void nvmmiddleware::NvmMiddleware::register_call(nvmmiddleware::Mode mode) {
 	}
 }
 
-/*future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::enqueue_get(const string *k, string *reply, nvmmiddleware::Mode mode)
+future<nvmmiddleware::Status> nvmmiddleware::NvmMiddleware::mw_get(const string *k, string *reply, nvmmiddleware::Mode mode)
 {
     future<nvmmiddleware::Status> ft;
     register_call(mode);
     auto get_task = make_shared<std::packaged_task<nvmmiddleware::Status()>>(
-	std::bind(&nvmmiddleware::NvmMiddleware::get, this, k, reply)
+	std::bind(&nvmmiddleware::NvmMiddleware::get, this, kv_, k, reply)
 	);
     //auto shared_task = make_shared<std::function<void()>>([get_task]() { (*get_task)();  });
     auto timer = make_shared<Timer<std::chrono::microseconds>>();
@@ -324,18 +237,28 @@ void nvmmiddleware::NvmMiddleware::register_call(nvmmiddleware::Mode mode) {
     timer->Start();
     if (mode == INTERACTIVE)
     {
-	interactive_pool_->enqueue(shared_task);
+	if (interactive_threads == 0) {
+            (*shared_task)();
+        } else {
+            interactive_pool_->enqueue(shared_task);
+        }
+	//interactive_pool_->enqueue(shared_task);
 	received_interactive++;
     }
     else
     {
-	batch_pool_->enqueue(shared_task);
+	if (batch_threads == 0) {
+            (*shared_task)();
+        } else {
+            batch_pool_->enqueue(shared_task);
+        }
+	//batch_pool_->enqueue(shared_task);
 	received_batch++;
     }
     //total_reads += 1;
     //cout << "GET: key " << *k << endl;
     return ft;
-}*/
+}
 
 void nvmmiddleware::NvmMiddleware::incrementInteractiveThreads()
 {

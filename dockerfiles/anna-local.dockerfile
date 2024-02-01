@@ -23,6 +23,17 @@ USER root
 # and build Anna.
 RUN echo "/usr/local/gcc-10/lib" >> /etc/ld.so.conf.d/libc.conf
 RUN echo "/usr/local/gcc-10/lib64" >> /etc/ld.so.conf.d/libc.conf && ldconfig
+RUN apt install -y rapidjson-dev libnuma-dev valgrind
+RUN git clone https://github.com/pmem/libpmemobj-cpp && cd libpmemobj-cpp \
+    && export PKG_CONFIG_PATH=/usr/lib64/pkgconfig \
+    && mkdir build && cd build && cmake .. && make -j$(nproc) && su -c 'make install' && cd ..
+RUN git clone https://github.com/memkind/memkind && cd memkind \
+    && ./autogen.sh && ./configure && make && su -c 'make install' && cd ..
+RUN git clone https://github.com/pmem/pmemkv && cd pmemkv \
+    && mkdir ./build && cd ./build \
+    && export PKG_CONFIG_PATH=/usr/lib64/pkgconfig \
+    && cmake .. -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release && make -j$(nproc) && make install && cd ..
+
 WORKDIR $HYDRO_HOME
 RUN rm -rf anna/
 RUN mkdir anna

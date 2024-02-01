@@ -52,7 +52,7 @@ void send_gossip(AddressKeysetMap &addr_keyset_map, SocketCache &pushers,
 
 std::pair<string, AnnaError> process_get(const Key &key,
                                          Serializer *serializer,
-					 unsigned mwtype = 0) {
+					 unsigned int mwtype = 0) {
   AnnaError error = AnnaError::NO_ERROR;
   auto res = serializer->get(key, error, mwtype);
   return std::pair<string, AnnaError>(std::move(res), error);
@@ -60,7 +60,7 @@ std::pair<string, AnnaError> process_get(const Key &key,
 
 void process_put(const Key &key, LatticeType lattice_type,
                  const string &payload, Serializer *serializer,
-                 map<Key, KeyProperty> &stored_key_map, unsigned mwtype = 0) {
+                 map<Key, KeyProperty> &stored_key_map, unsigned int mwtype = 0) {
   if (mwtype == 0) {
     std::cout << "function " << __PRETTY_FUNCTION__ << " called no mwtype" << std::endl;
   }

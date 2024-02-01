@@ -5,6 +5,7 @@
 #include <future>
 #include <atomic>
 #include <chrono>
+#include <libpmemkv.hpp>
 #include "ThreadPool.h"
 #include "timer.h"
 #include <hdr/hdr_histogram.h>
@@ -13,14 +14,6 @@
 #include <tbb/concurrent_queue.h>
 #include <math.h>
 #include <fstream>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <libpmem.h>
-#include <cstring>
 
 #define REWARD_SAMPLE 200
 
@@ -126,8 +119,8 @@ namespace nvmmiddleware
     {
     public:
         NvmMiddleware(std::string dbPath, int interactiveThreads, int batchThreads);
-	std::future<Status> enqueue_put(const std::string *k, const std::string *value, Mode mode);
-	std::future<Status> enqueue_get(const std::string *k, std::string *reply, Mode mode);
+	std::future<Status> mw_put(const std::string *k, const std::string *value, Mode mode);
+	std::future<Status> mw_get(const std::string *k, std::string *reply, Mode mode);
 	//Status direct_put(const std::string *k, const std::string *value);
 	//Status direct_get(const std::string *k, std::string *reply);
 	void close_mw();
@@ -149,8 +142,9 @@ namespace nvmmiddleware
 	~NvmMiddleware();
 
     private:
-	Status put(const std::string *k, const std::string *value);
-	Status get(const std::string *k, std::string *reply);
+	Status put(pmem::kv::db *db, const std::string *k, const std::string *value);
+	Status get(pmem::kv::db *db, const std::string *k, std::string *reply);
+	void start_db(std::string dbPath);
 	void resetRewardCycle();
         void init_hdr();
 	void register_call(nvmmiddleware::Mode mode);
@@ -182,6 +176,9 @@ namespace nvmmiddleware
 	std::thread int_tracker;
 	std::thread batch_tracker;
 	std::string path;
+	pmem::kv::db *kv_ = NULL;
+	int interactive_threads = 0;
+	int batch_threads = 0;
     };
 }
 #endif
